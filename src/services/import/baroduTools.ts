@@ -277,6 +277,18 @@ export function guessSource(url: string): SourceType {
 }
 
 /**
+ * 이 화면이 **공개 주소(인터넷)** 에서 열렸는지.
+ *
+ * BARODU Tools 는 이 컴퓨터 안에서 열린 제작기에게만 답하도록 만들어져 있다.
+ * 그래서 인터넷 주소로 열었을 때는 설치를 해도 이어지지 않는다.
+ * "설치하면 된다" 고 알리면 안 되므로, 이 값을 보고 **안 된다고 그대로** 알린다.
+ */
+export function onPublicAddress(): boolean {
+  if (typeof window === 'undefined') return false;
+  return !/^(localhost|127.0.0.1)$/.test(window.location.hostname);
+}
+
+/**
  * 주소 하나를 읽어온다.
  *
  * 실패해도 **지금 작업은 절대 건드리지 않는다.** 이유만 돌려준다.

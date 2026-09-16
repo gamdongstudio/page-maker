@@ -1,5 +1,5 @@
 import { BARODU_TOOLS } from '@/config/baroduTools';
-import { toolsStatus } from '@/services/import/baroduTools';
+import { onPublicAddress, toolsStatus } from '@/services/import/baroduTools';
 import type { SmartStorePayload } from './payload';
 import { plannedNames, photoToBlob } from './pack';
 import { copyBlocks } from './text';
@@ -82,6 +82,14 @@ export async function toRequest(v: SmartStorePayload, mode: FillMode) {
 
 /** 지금 자동입력을 쓸 수 있는지 */
 export async function canAutoFill(): Promise<{ ok: boolean; reason: string }> {
+  if (onPublicAddress()) {
+    return {
+      ok: false,
+      reason: '이 주소에서는 자동입력을 쓸 수 없습니다. '
+        + 'BARODU Tools 는 컴퓨터에 설치된 제작기에서만 답합니다. '
+        + '아래 등록자료 받기와 항목별 복사는 그대로 쓰실 수 있어요.',
+    };
+  }
   const s = await toolsStatus();
   if (s.state === 'connected') return { ok: true, reason: '' };
   if (s.state === 'stopped') {

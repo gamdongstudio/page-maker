@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useProject } from '@/store/ProjectStore';
 import {
-  toolsStatus, forgetTools, collectFromUrl, checkUrl, guessSource, photoSrc,
+  toolsStatus, forgetTools, collectFromUrl, checkUrl, guessSource, photoSrc, onPublicAddress,
   SOURCE_LABEL,
   SOURCE_READINESS, type ImportResult, type ToolsStatus,
 } from '@/services/import/baroduTools';
@@ -54,16 +54,8 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
 
   const busy = phase !== '';
 
-  /**
-   * 이 화면이 **공개 주소(인터넷)** 에서 열렸는지.
-   *
-   * BARODU Tools 는 이 컴퓨터 안에서만 답하도록 만들어져 있다.
-   * 그래서 인터넷 주소로 열었을 때는 설치를 해도 링크 가져오기가 되지 않는다.
-   * 된다고 안내하면 안 되므로, 이때는 **안 된다고 그대로** 알린다.
-   */
-  const onPublicAddress =
-    typeof window !== 'undefined' &&
-    !/^(localhost|127.0.0.1)$/.test(window.location.hostname);
+  /* 공개 주소에서는 BARODU Tools 가 이어지지 않는다 — 안 된다고 그대로 알린다 */
+  const isPublic = onPublicAddress();
 
   /* ---------------------------------------------------------------- */
 
@@ -178,7 +170,7 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
         <i className={'importstate__dot is-' + tools.state} />
         {tools.label}
         {tools.state === 'connected' && tools.version ? ` · ${tools.version}` : ''}
-        {needTools && !onPublicAddress && (
+        {needTools && !isPublic && (
           <button className="linkbtn" onClick={() => void recheck()}>다시 확인</button>
         )}
       </p>
@@ -222,7 +214,7 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
               </span>
             </>
           ) : (
-            onPublicAddress ? (
+            isPublic ? (
               <>
                 <b>이 주소에서는 링크로 가져오기를 쓸 수 없습니다.</b>
                 <br />링크를 읽어오는 일은 <b>BARODU Tools</b>가 맡는데,

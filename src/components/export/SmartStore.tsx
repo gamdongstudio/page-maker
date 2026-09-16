@@ -8,6 +8,7 @@ import { buildPayload, checkReady, type SmartStorePayload } from '@/services/sma
 import { buildZip, plannedNames, zipFileName } from '@/services/smartstore/pack';
 import { copyBlocks, fullText } from '@/services/smartstore/text';
 import { autoFill, canAutoFill, type FillMode, type PublishStep } from '@/services/smartstore/publish';
+import { onPublicAddress } from '@/services/import/baroduTools';
 
 /**
  * 네이버 스마트스토어에 올리기.
@@ -191,7 +192,9 @@ export function SmartStore({ getStage }: { getStage: () => HTMLElement | null })
         {!toolsOk && toolsWhy && (
           <p className="ss__why">
             {toolsWhy}
-            <button className="tiny" onClick={() => void checkTools()}>다시 확인</button>
+            {!onPublicAddress() && (
+              <button className="tiny" onClick={() => void checkTools()}>다시 확인</button>
+            )}
           </p>
         )}
         <p className="field__hint">
