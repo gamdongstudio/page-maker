@@ -1,0 +1,1111 @@
+import type { MenuItem, Photo, ProjectData } from '@/types/project';
+import { photoStyle } from '@/utils/image';
+import { photosOf } from '@/utils/menuPhotos';
+import { formatWon, pickReadable, shade } from '@/utils/format';
+import { Editable } from './Editable';
+import type { PreviewEdit } from './editApi';
+
+/**
+ * 사진관 섹션들의 여러 가지 모양(템플릿).
+ *
+ * 규칙
+ *  - 모양만 다르고 **읽는 데이터는 모두 같다.** 모양을 바꿔도 내용이 사라지지 않는다.
+ *  - 색만 다른 것이 아니라 배치 자체가 다르다.
+ *  - 사진은 올린 것을 고르고 놓기만 한다. 얼굴을 손대는 일은 없다.
+ */
+
+export interface SectionProps {
+  menu: MenuItem;
+  project: ProjectData;
+  narrow: boolean;
+  titleStyle: React.CSSProperties;
+  bodyStyle: React.CSSProperties;
+  boxWidth: number;
+  /** 미리보기에서 바로 고칠 때만 넘어온다 (저장 이미지에서는 없다) */
+  edit?: PreviewEdit;
+}
+
+/* ------------------------------------------------------------------ */
+/* 공통 부품                                                            */
+/* ------------------------------------------------------------------ */
+
+function Img({ photo, width, radius }: { photo: Photo; width: number; radius: number }) {
+  return (
+    <img
+      src={photo.dataUrl}
+      alt={photo.caption || photo.name}
+      style={{ ...photoStyle(photo, width), borderRadius: radius, background: '#f1f3f6' }}
+    />
+  );
+}
+
+function Empty({ text }: { text: string }) {
+  return (
+    <span style={{
+      color: '#a8adb5', fontSize: 14, border: '1px dashed #d6dae0',
+      borderRadius: 8, padding: '14px 16px', display: 'block',
+    }}>{text}</span>
+  );
+}
+
+/** '제목 | 설명' 형태의 줄을 나눈다 */
+function splitLines(lines: string[]): { title: string; body: string }[] {
+  return lines
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => {
+      const [head, ...rest] = l.split('|');
+      return { title: head.trim(), body: rest.join('|').trim() };
+    });
+}
+
+/* ------------------------------------------------------------------ */
+/* 이벤트                                                              */
+/* ------------------------------------------------------------------ */
+
+export function EventSection({ menu, project, titleStyle, bodyStyle, boxWidth }: SectionProps) {
+  const d = project.design;
+  const ev = project.event;
+  const tpl = menu.template ?? 'A';
+  const list = formatWon(ev?.listPrice ?? '');
+  const sale = formatWon(ev?.eventPrice ?? '');
+  const percent = discountPercent(ev?.listPrice, ev?.eventPrice);
+  const name = ev?.title || menu.title;
+  const body = ev?.body || menu.body;
+  const photos = photosOf(menu, project);
+
+  if (tpl === 'C') {
+    /* 기간 강조 배너 */
+    return (
+      <div style={{
+        background: d.primary, color: pickReadable(d.primary),
+        borderRadius: d.photoRadius, padding: '26px 22px', textAlign: 'center',
+      }}>
+        {ev?.period && (
+          <p style={{ margin: '0 0 8px', fontSize: d.bodySize - 1, opacity: .9, letterSpacing: 1 }}>
+            {ev.period}
+          </p>
+        )}
+        <h2 style={{ ...titleStyle, color: pickReadable(d.primary), margin: '0 0 10px' }}>{name}</h2>
+        {sale && <p style={{ margin: 0, fontSize: d.titleSize + 2, fontWeight: 800 }}>{sale}</p>}
+        {body && <p style={{ ...bodyStyle, color: pickReadable(d.primary), marginTop: 10, opacity: .92 }}>{body}</p>}
+      </div>
+    );
+  }
+
+  if (tpl === 'D') {
+    /* 고급 카드 */
+    return (
+      <div style={{
+        border: `1px solid ${shade(d.text, 55)}`, borderRadius: d.photoRadius,
+        padding: '28px 24px', textAlign: 'center',
+      }}>
+        {ev?.period && (
+          <p style={{ margin: '0 0 12px', fontSize: d.bodySize - 3, letterSpacing: 3, color: d.primary }}>
+            {ev.period}
+          </p>
+        )}
+        <h2 style={{ ...titleStyle, margin: '0 0 14px' }}>{name}</h2>
+        <div style={{ width: 40, height: 1, background: shade(d.text, 40), margin: '0 auto 14px' }} />
+        {sale && (
+          <p style={{ margin: 0, fontSize: d.titleSize, fontWeight: 700 }}>
+            {sale}
+            {list && <span style={{ fontSize: d.bodySize, opacity: .45, textDecoration: 'line-through', marginLeft: 10 }}>{list}</span>}
+          </p>
+        )}
+        {body && <p style={{ ...bodyStyle, marginTop: 12 }}>{body}</p>}
+      </div>
+    );
+  }
+
+  if (tpl === 'E') {
+    /* 이벤트 포스터형 — 대표사진 위에 제목·가격·구성을 얹는다.
+       ⚠ 사진 자체는 손대지 않는다. 글자를 위에 올릴 뿐이다. */
+    const includes = (project.pricing?.includes ?? '')
+      .split('\n').map((s) => s.trim()).filter(Boolean).slice(0, 5);
+    const cover = photos[0];
+    const coverH = Math.round(boxWidth * 0.72);
+    return (
+      <div style={{ borderRadius: d.photoRadius, overflow: 'hidden', border: `1px solid ${shade(d.text, 55)}` }}>
+        {cover ? (
+          <div style={{ position: 'relative' }}>
+            <img
+              src={cover.dataUrl}
+              alt={cover.caption || cover.name}
+              style={{
+                display: 'block', width: '100%', height: coverH, objectFit: 'cover',
+                objectPosition: cover.focusX + '% ' + cover.focusY + '%',
+              }}
+            />
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(180deg,rgba(0,0,0,.05) 0%,rgba(0,0,0,.62) 100%)',
+            }} />
+            <div style={{
+              position: 'absolute', left: 0, right: 0, bottom: 0,
+              padding: '22px 20px', color: '#fff', textAlign: 'center',
+            }}>
+              {ev?.period && <p style={{ margin: '0 0 6px', fontSize: d.bodySize - 2, opacity: .9 }}>{ev.period}</p>}
+              <h2 style={{ ...titleStyle, color: '#fff', margin: '0 0 8px' }}>{name}</h2>
+              {body && (
+                <p style={{ ...bodyStyle, color: '#fff', margin: '0 0 10px', opacity: .92, fontSize: d.bodySize - 1 }}>
+                  {body}
+                </p>
+              )}
+              <p style={{ margin: 0 }}>
+                {list && (
+                  <span style={{ opacity: .6, textDecoration: 'line-through', marginRight: 10, fontSize: d.bodySize }}>
+                    {list}
+                  </span>
+                )}
+                {sale && <b style={{ fontSize: d.titleSize + 4 }}>{sale}</b>}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: '24px 20px' }}>
+            <h2 style={{ ...titleStyle, margin: '0 0 8px' }}>{name}</h2>
+            <Empty text="사진을 올리면 포스터가 완성됩니다." />
+          </div>
+        )}
+
+        <div style={{ padding: '18px 20px', textAlign: 'center' }}>
+          {includes.length > 0 && (
+            <ul style={{ margin: '0 0 14px', padding: 0, listStyle: 'none', display: 'grid', gap: 5 }}>
+              {includes.map((it, i) => (
+                <li key={i} style={{ fontSize: d.bodySize - 1, opacity: .9 }}>{it}</li>
+              ))}
+            </ul>
+          )}
+          <span style={{
+            display: 'inline-block', background: d.primary, color: pickReadable(d.primary),
+            padding: '13px 30px', fontWeight: 700, fontSize: d.bodySize + 1,
+            borderRadius: d.buttonStyle === 'pill' ? 999 : d.buttonStyle === 'round' ? 10 : 0,
+          }}>
+            {menu.button || '예약·문의하기'}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (tpl === 'B' && photos.length > 0) {
+    /* 사진 + 가격 */
+    const half = Math.floor((boxWidth - 14) / 2);
+    return (
+      <div>
+        <h2 style={titleStyle}>{name}</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'center' }}>
+          <Img photo={photos[0]} width={half} radius={d.photoRadius} />
+          <div style={{ textAlign: 'left' }}>
+            {ev?.period && <p style={{ margin: '0 0 8px', fontSize: d.bodySize - 2, color: d.primary }}>{ev.period}</p>}
+            {percent > 0 && (
+              <p style={{ margin: '0 0 4px', fontSize: d.titleSize, fontWeight: 800, color: d.primary }}>{percent}%</p>
+            )}
+            {list && <p style={{ margin: 0, opacity: .45, textDecoration: 'line-through' }}>{list}</p>}
+            {sale && <p style={{ margin: '2px 0 0', fontSize: d.titleSize - 4, fontWeight: 800 }}>{sale}</p>}
+            {body && <p style={{ ...bodyStyle, marginTop: 10, fontSize: d.bodySize - 1 }}>{body}</p>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* A — 큰 할인 강조 */
+  return (
+    <div>
+      <h2 style={titleStyle}>{name}</h2>
+      {percent > 0 ? (
+        <p style={{ margin: '0 0 8px', fontSize: d.titleSize + 16, fontWeight: 900, color: d.primary, lineHeight: 1 }}>
+          {percent}%
+        </p>
+      ) : null}
+      {ev?.period && <p style={{ margin: '0 0 6px', fontSize: d.bodySize - 1, opacity: .75 }}>{ev.period}</p>}
+      {(list || sale) && (
+        <p style={{ margin: 0, fontSize: d.bodySize + 4 }}>
+          {list && <span style={{ opacity: .45, textDecoration: 'line-through', marginRight: 10 }}>{list}</span>}
+          {sale && <b style={{ fontSize: d.titleSize - 2 }}>{sale}</b>}
+        </p>
+      )}
+      {body ? <p style={{ ...bodyStyle, marginTop: 12 }}>{body}</p> : null}
+      {!body && !sale && !percent && <Empty text="이벤트 내용을 넣으면 여기에 보입니다." />}
+    </div>
+  );
+}
+
+/** '4인' → '4인 기준' / '4인 기준' → 그대로 (겹쳐 적히지 않게) */
+function withGijun(people: string): string {
+  const v = people.trim();
+  return /(기준|까지)$/.test(v) ? v : `${v} 기준`;
+}
+
+function discountPercent(list?: string, sale?: string): number {
+  const l = Number(String(list ?? '').replace(/[^\d]/g, ''));
+  const s = Number(String(sale ?? '').replace(/[^\d]/g, ''));
+  if (!l || !s || s >= l) return 0;
+  return Math.round((1 - s / l) * 100);
+}
+
+/* ------------------------------------------------------------------ */
+/* 특별한 혜택                                                          */
+/* ------------------------------------------------------------------ */
+
+export function PerksSection({ menu, project, titleStyle, bodyStyle, boxWidth }: SectionProps) {
+  const d = project.design;
+  const tpl = menu.template ?? 'A';
+  /*
+   * 이 섹션에 적어둔 줄을 **먼저** 본다.
+   * 읽어온 혜택 목록(project.perks)은 그 줄을 채우는 데 쓰였을 뿐이고,
+   * 사용자가 [글 수정]에서 고치면 그 내용이 바로 보여야 한다.
+   */
+  const own = splitLines(menu.lines);
+  const items = own.length
+    ? own
+    : (project.perks ?? []).map((p) => ({ title: p.title, body: p.body }));
+  const photos = photosOf(menu, project);
+
+  if (items.length === 0) {
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <Empty text="드리는 혜택을 적으면 여기에 보입니다." />
+      </div>
+    );
+  }
+
+  if (tpl === 'B') {
+    /* 카드 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {items.map((it, i) => (
+            <div key={i} style={{
+              border: `1px solid ${shade(d.text, 60)}`, borderRadius: d.photoRadius || 10,
+              padding: '18px 16px', textAlign: 'center',
+            }}>
+              <b style={{ display: 'block', marginBottom: 6, color: d.accent }}>{it.title}</b>
+              {it.body && <span style={{ fontSize: d.bodySize - 2, opacity: .8 }}>{it.body}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (tpl === 'C') {
+    /* 사진 + 설명 */
+    const half = Math.floor((boxWidth - 14) / 2);
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'grid', gap: 16 }}>
+          {items.map((it, i) => {
+            const photo = photos[i % Math.max(1, photos.length)];
+            const flip = i % 2 === 1;
+            return (
+              <div key={i} style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'center',
+                direction: flip ? 'rtl' : 'ltr',
+              }}>
+                <div style={{ direction: 'ltr' }}>
+                  {photo ? <Img photo={photo} width={half} radius={d.photoRadius} /> : <Empty text="사진" />}
+                </div>
+                <div style={{ direction: 'ltr', textAlign: 'left' }}>
+                  <b style={{ display: 'block', marginBottom: 6, color: d.accent }}>{it.title}</b>
+                  {it.body && <span style={{ fontSize: d.bodySize - 1, opacity: .85 }}>{it.body}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (tpl === 'D') {
+    /* 아이콘 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, justifyContent: 'center' }}>
+          {items.map((it, i) => (
+            <div key={i} style={{ width: Math.floor((boxWidth - 28) / 3), textAlign: 'center' }}>
+              <span style={{
+                display: 'flex', width: 54, height: 54, borderRadius: 27, margin: '0 auto 10px',
+                background: shade(d.background, -6), color: d.primary,
+                alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800,
+              }}>{project.perks?.[i]?.icon || '✓'}</span>
+              <b style={{ display: 'block', fontSize: d.bodySize - 1 }}>{it.title}</b>
+              {it.body && <span style={{ fontSize: d.bodySize - 3, opacity: .75 }}>{it.body}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (tpl === 'E') {
+    /* 세로 스토리 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'grid', gap: 0, textAlign: 'left' }}>
+          {items.map((it, i) => (
+            <div key={i} style={{
+              borderLeft: `2px solid ${shade(d.primary, 30)}`, paddingLeft: 18,
+              paddingBottom: i === items.length - 1 ? 0 : 20, position: 'relative',
+            }}>
+              <span style={{
+                position: 'absolute', left: -5, top: 4, width: 8, height: 8,
+                borderRadius: 4, background: d.primary,
+              }} />
+              <b style={{ display: 'block', marginBottom: 4, color: d.accent }}>{it.title}</b>
+              {it.body && <span style={{ fontSize: d.bodySize - 1, opacity: .85 }}>{it.body}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* A — 번호 강조 */
+  return (
+    <div>
+      <h2 style={titleStyle}>{menu.title}</h2>
+      <div style={{ display: 'grid', gap: 12 }}>
+        {items.map((it, i) => (
+          <div key={i} style={{
+            display: 'flex', gap: 14, alignItems: 'flex-start', textAlign: 'left',
+            background: shade(d.background, -4), borderRadius: d.photoRadius, padding: '16px 18px',
+          }}>
+            <span style={{
+              flex: '0 0 auto', fontSize: d.titleSize - 6, fontWeight: 800,
+              color: d.primary, lineHeight: 1, minWidth: 34,
+            }}>{String(i + 1).padStart(2, '0')}</span>
+            <span>
+              <b style={{ display: 'block', marginBottom: 4 }}>{it.title}</b>
+              {it.body && <span style={{ opacity: .85 }}>{it.body}</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+      {bodyStyle && null}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 가격                                                                */
+/* ------------------------------------------------------------------ */
+
+export function PriceSection({ menu, project, titleStyle, bodyStyle }: SectionProps) {
+  const d = project.design;
+  const tpl = menu.template ?? 'A';
+  const pr = project.pricing;
+  const prod = project.product;
+  const list = formatWon(pr?.listPrice || prod.listPrice);
+  const sale = formatWon(pr?.eventPrice || prod.salePrice);
+  const percent = discountPercent(pr?.listPrice || prod.listPrice, pr?.eventPrice || prod.salePrice);
+  const includes = (pr?.includes || '').split('\n').map((s) => s.trim()).filter(Boolean);
+  const extras = [
+    ['액자', pr?.frame], ['수정본', pr?.retouch], ['원본 제공', pr?.rawFiles],
+    ['의상', pr?.costume], ['헤어·메이크업', pr?.hairMakeup],
+    ['추가 인원', pr?.extraPerson], ['주말 추가', pr?.weekendExtra],
+    /* '기타' 에는 여러 줄이 들어올 수 있다 (링크로 가져온 가격표 등).
+       한 칸에 몰아 넣으면 줄바꿈이 사라져 길게 이어 붙으므로 줄마다 한 칸씩 보여준다 */
+    ...(pr?.etcExtra || '').split('\n').map((s) => s.trim()).filter(Boolean)
+      .map((s) => ['기타', s] as [string, string | undefined]),
+  ].filter(([, v]) => !!v) as [string, string][];
+
+  if (!list && !sale && includes.length === 0 && extras.length === 0) {
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <Empty text="가격을 넣으면 여기에 보입니다. (확인이 필요한 값이라 비워뒀습니다)" />
+      </div>
+    );
+  }
+
+  const row = (k: string, v: string, i = 0) => (
+    <div key={`${k}-${i}-${v}`} style={{
+      display: 'flex', justifyContent: 'space-between', gap: 12,
+      padding: '9px 0', borderBottom: `1px solid ${shade(d.text, 70)}`, textAlign: 'left',
+    }}>
+      <span style={{ opacity: .7 }}>{k}</span>
+      <b>{v}</b>
+    </div>
+  );
+
+  if (tpl === 'B') {
+    /* 패키지 카드 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{
+          border: `2px solid ${d.primary}`, borderRadius: d.photoRadius || 12, overflow: 'hidden',
+        }}>
+          <div style={{ background: d.primary, color: pickReadable(d.primary), padding: '14px 18px' }}>
+            <b style={{ fontSize: d.bodySize + 2 }}>{pr?.people ? withGijun(pr.people) : '기본 패키지'}</b>
+          </div>
+          <div style={{ padding: '18px' }}>
+            {sale && <p style={{ margin: '0 0 14px', fontSize: d.titleSize, fontWeight: 800 }}>{sale}</p>}
+            {includes.map((x, i) => row('포함', x, i))}
+            {extras.map(([k, v], i) => row(k, v, i))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (tpl === 'C') {
+    /* 정상가 → 할인가 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: d.bodySize + 2, opacity: .5, textDecoration: 'line-through' }}>{list}</span>
+          <span style={{ fontSize: d.titleSize, color: d.primary }}>→</span>
+          <span style={{ fontSize: d.titleSize + 6, fontWeight: 900 }}>{sale}</span>
+          {percent > 0 && (
+            <span style={{
+              background: d.primary, color: pickReadable(d.primary), borderRadius: 999,
+              padding: '5px 13px', fontWeight: 800, fontSize: d.bodySize,
+            }}>{percent}% 할인</span>
+          )}
+        </div>
+        {pr?.people && <p style={{ ...bodyStyle, marginTop: 12, opacity: .75 }}>{withGijun(pr.people)}</p>}
+      </div>
+    );
+  }
+
+  if (tpl === 'D') {
+    /* 포함사항 중심 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        {sale && (
+          <p style={{ margin: '0 0 14px', fontSize: d.titleSize - 4, fontWeight: 800 }}>
+            {sale}{pr?.people ? <span style={{ fontSize: d.bodySize, opacity: .6, marginLeft: 8 }}>{withGijun(pr.people)}</span> : null}
+          </p>
+        )}
+        <div style={{ display: 'grid', gap: 8 }}>
+          {includes.map((x, i) => (
+            <div key={i} style={{
+              display: 'flex', gap: 10, alignItems: 'center', textAlign: 'left',
+              background: shade(d.background, -4), borderRadius: d.photoRadius || 8, padding: '12px 16px',
+            }}>
+              <span style={{ color: d.primary, fontWeight: 800 }}>+</span>
+              <span>{x}</span>
+            </div>
+          ))}
+          {extras.map(([k, v], i) => row(k, v, i))}
+        </div>
+      </div>
+    );
+  }
+
+  /* A — 큰 가격 강조 */
+  return (
+    <div>
+      <h2 style={titleStyle}>{menu.title}</h2>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', justifyContent: d.align === 'center' ? 'center' : d.align === 'right' ? 'flex-end' : 'flex-start', flexWrap: 'wrap' }}>
+        {percent > 0 && <span style={{ color: d.primary, fontWeight: 800, fontSize: 30 }}>{percent}%</span>}
+        {list && percent > 0 && <span style={{ textDecoration: 'line-through', opacity: .45, fontSize: 18 }}>{list}</span>}
+        <span style={{ fontWeight: 800, fontSize: 34 }}>{sale || list}</span>
+      </div>
+      {pr?.people && <p style={{ ...bodyStyle, marginTop: 8, opacity: .75 }}>{withGijun(pr.people)}</p>}
+      {(includes.length > 0 || extras.length > 0) && (
+        <div style={{ marginTop: 16 }}>
+          {includes.map((x, i) => row('포함', x, i))}
+          {extras.map(([k, v], i) => row(k, v, i))}
+        </div>
+      )}
+      {menu.body && <p style={{ ...bodyStyle, marginTop: 14 }}>{menu.body}</p>}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 촬영 콘셉트                                                          */
+/* ------------------------------------------------------------------ */
+
+export function ConceptSection({ menu, project, titleStyle, bodyStyle, boxWidth }: SectionProps) {
+  const d = project.design;
+  const tpl = menu.template ?? 'A';
+  const names = menu.lines.filter(Boolean);
+  const concepts = project.concepts ?? [];
+  const photos = photosOf(menu, project);
+  const half = Math.floor((boxWidth - 14) / 2);
+
+  const chips = names.length > 0 && (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: d.align === 'center' ? 'center' : d.align === 'right' ? 'flex-end' : 'flex-start', marginTop: 12 }}>
+      {names.map((n, i) => (
+        <span key={i} style={{
+          border: `1px solid ${d.primary}`, color: d.primary,
+          borderRadius: 999, padding: '7px 16px', fontSize: d.bodySize - 2,
+        }}>{n}</span>
+      ))}
+    </div>
+  );
+
+  if (tpl === 'B' || tpl === 'C') {
+    /* 사진 왼쪽/오른쪽 + 설명 */
+    const photoFirst = tpl === 'B';
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'center' }}>
+          {photoFirst && photos[0] && <Img photo={photos[0]} width={half} radius={d.photoRadius} />}
+          <div style={{ textAlign: 'left' }}>
+            {menu.body && <p style={{ ...bodyStyle }}>{menu.body}</p>}
+            {names.length > 0 && (
+              <ul style={{ margin: '12px 0 0', paddingLeft: 18, display: 'grid', gap: 5 }}>
+                {names.map((n, i) => <li key={i}>{n}</li>)}
+              </ul>
+            )}
+          </div>
+          {!photoFirst && photos[0] && <Img photo={photos[0]} width={half} radius={d.photoRadius} />}
+        </div>
+      </div>
+    );
+  }
+
+  if (tpl === 'D') {
+    /* 콜라주 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        {menu.body && <p style={{ ...bodyStyle, marginBottom: 14 }}>{menu.body}</p>}
+        {photos.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
+            <Img photo={photos[0]} width={Math.floor(boxWidth * 0.64)} radius={d.photoRadius} />
+            <div style={{ display: 'grid', gap: 10 }}>
+              {photos.slice(1, 3).map((p) => (
+                <Img key={p.id} photo={p} width={Math.floor(boxWidth * 0.33)} radius={d.photoRadius} />
+              ))}
+            </div>
+          </div>
+        ) : <Empty text="사진을 넣으면 여기에 보입니다." />}
+        {chips}
+      </div>
+    );
+  }
+
+  if (tpl === 'E') {
+    /* 카드 갤러리 — 콘셉트마다 사진 한 장 */
+    const cards = concepts.length > 0
+      ? concepts.map((c, i) => ({ name: c.name, summary: c.summary, photo: photos[i] }))
+      : names.map((n, i) => ({ name: n, summary: '', photo: photos[i] }));
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        {menu.body && <p style={{ ...bodyStyle, marginBottom: 14 }}>{menu.body}</p>}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {cards.map((c, i) => (
+            <div key={i}>
+              {c.photo ? <Img photo={c.photo} width={half} radius={d.photoRadius} />
+                : <div style={{ height: 120, background: shade(d.background, -6), borderRadius: d.photoRadius }} />}
+              <b style={{ display: 'block', marginTop: 8, fontSize: d.bodySize }}>{c.name}</b>
+              {c.summary && <span style={{ fontSize: d.bodySize - 3, opacity: .75 }}>{c.summary}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* A — 큰 사진 중심 (사진은 공통 사진 칸이 그린다) */
+  return (
+    <div>
+      <h2 style={titleStyle}>{menu.title}</h2>
+      {menu.body && <p style={bodyStyle}>{menu.body}</p>}
+      {chips}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 장점                                                                */
+/* ------------------------------------------------------------------ */
+
+export function BenefitSection({ menu, project, titleStyle, bodyStyle, boxWidth }: SectionProps) {
+  const d = project.design;
+  const tpl = menu.template ?? 'A';
+  const lines = (menu.body || project.product.benefits || '').split('\n').map((s) => s.trim()).filter(Boolean);
+  const photos = photosOf(menu, project);
+  const half = Math.floor((boxWidth - 14) / 2);
+
+  if (lines.length === 0) {
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <Empty text="장점을 적으면 여기에 보입니다." />
+      </div>
+    );
+  }
+
+  if (tpl === 'B') {
+    /* 숫자 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'grid', gap: 18 }}>
+          {lines.map((line, i) => (
+            <div key={i} style={{ textAlign: 'left' }}>
+              <span style={{
+                display: 'block', fontSize: d.titleSize + 4, fontWeight: 900,
+                color: shade(d.primary, 45), lineHeight: 1, marginBottom: 4,
+              }}>{String(i + 1).padStart(2, '0')}</span>
+              <span style={{ fontSize: d.bodySize + 1 }}>{line}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (tpl === 'C') {
+    /* 키워드 강조 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'grid', gap: 10 }}>
+          {lines.map((line, i) => {
+            const [head, ...rest] = line.split(' ');
+            return (
+              <p key={i} style={{ margin: 0, fontSize: d.bodySize + 2, lineHeight: 1.7 }}>
+                <b style={{ color: d.primary }}>{head}</b>{rest.length ? ' ' + rest.join(' ') : ''}
+              </p>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (tpl === 'D') {
+    /* 사진 + 설명 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'grid', gap: 16 }}>
+          {lines.map((line, i) => {
+            const photo = photos[i % Math.max(1, photos.length)];
+            return (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'center' }}>
+                {photo ? <Img photo={photo} width={half} radius={d.photoRadius} />
+                  : <div style={{ height: 110, background: shade(d.background, -6), borderRadius: d.photoRadius }} />}
+                <span style={{ textAlign: 'left' }}>{line}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  /* A — 포인트 카드 */
+  return (
+    <div>
+      <h2 style={titleStyle}>{menu.title}</h2>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 12 }}>
+        {lines.map((line, i) => (
+          <li key={i} style={{
+            background: shade(d.background, -4), borderRadius: d.photoRadius,
+            padding: '14px 18px', borderLeft: `4px solid ${d.primary}`, textAlign: 'left',
+          }}>{line}</li>
+        ))}
+      </ul>
+      {bodyStyle && null}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 이런 분께 추천                                                       */
+/* ------------------------------------------------------------------ */
+
+export function RecommendSection({ menu, project, titleStyle, bodyStyle }: SectionProps) {
+  const d = project.design;
+  const tpl = menu.template ?? 'A';
+  const items = menu.lines.length
+    ? menu.lines.filter(Boolean)
+    : (menu.body || project.product.target || '').split('\n').map((x) => x.trim()).filter(Boolean);
+
+  if (items.length === 0) {
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <Empty text="어떤 분께 추천하는지 적으면 여기에 보입니다." />
+      </div>
+    );
+  }
+
+  if (tpl === 'B') {
+    /* 상황별 카드 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {items.map((line, i) => (
+            <div key={i} style={{
+              background: shade(d.primary, 88), borderRadius: d.photoRadius || 12,
+              padding: '18px 16px', textAlign: 'left', fontSize: d.bodySize,
+            }}>{line}</div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (tpl === 'C') {
+    /* 질문형 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'grid', gap: 12 }}>
+          {items.map((line, i) => (
+            <p key={i} style={{
+              margin: 0, textAlign: 'left', fontSize: d.bodySize + 1,
+              paddingLeft: 26, position: 'relative', lineHeight: 1.7,
+            }}>
+              <span style={{ position: 'absolute', left: 0, color: d.primary, fontWeight: 800 }}>Q.</span>
+              {line.replace(/\?$/, '')} 이신가요?
+            </p>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (tpl === 'D') {
+    /* 큰 문장 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'grid', gap: 16 }}>
+          {items.map((line, i) => (
+            <p key={i} style={{
+              margin: 0, fontSize: d.bodySize + 5, lineHeight: 1.6,
+              color: i === 0 ? d.accent : d.text, fontWeight: i === 0 ? 700 : 400,
+            }}>{line}</p>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* A — 체크리스트 */
+  return (
+    <div>
+      <h2 style={titleStyle}>{menu.title}</h2>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
+        {items.map((line, i) => (
+          <li key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', textAlign: 'left' }}>
+            <span style={{
+              flex: '0 0 auto', width: 22, height: 22, borderRadius: 11,
+              background: d.primary, color: pickReadable(d.primary),
+              fontSize: 13, fontWeight: 700, display: 'flex',
+              alignItems: 'center', justifyContent: 'center', marginTop: 2,
+            }}>✓</span>
+            <span>{line}</span>
+          </li>
+        ))}
+      </ul>
+      {bodyStyle && null}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 갤러리                                                              */
+/* ------------------------------------------------------------------ */
+
+export function GallerySection({ menu, project, titleStyle, boxWidth }: SectionProps) {
+  const d = project.design;
+  const tpl = menu.template ?? 'A';
+  const photos = photosOf(menu, project);
+
+  if (photos.length === 0) {
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <Empty text="사진을 넣으면 여기에 보입니다." />
+      </div>
+    );
+  }
+
+  const gap = 10;
+  const cols = tpl === 'B' ? 1 : tpl === 'C' ? 2 : tpl === 'D' ? 3 : 2;
+  const cell = Math.floor((boxWidth - gap * (cols - 1)) / cols);
+
+  if (tpl === 'D') {
+    /* 모자이크 — 첫 장을 크게 */
+    const [first, ...rest] = photos;
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'grid', gap }}>
+          <Img photo={first} width={boxWidth} radius={d.photoRadius} />
+          {rest.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap }}>
+              {rest.map((p) => <Img key={p.id} photo={p} width={cell} radius={d.photoRadius} />)}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 style={titleStyle}>{menu.title}</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap, marginTop: 4 }}>
+        {photos.map((p) => <Img key={p.id} photo={p} width={cell} radius={d.photoRadius} />)}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 촬영 과정 · 준비사항                                                  */
+/* ------------------------------------------------------------------ */
+
+export function ProcessSection({ menu, project, titleStyle }: SectionProps) {
+  const d = project.design;
+  const tpl = menu.template ?? 'A';
+  const steps = menu.lines.filter(Boolean);
+  if (steps.length === 0) {
+    return <div><h2 style={titleStyle}>{menu.title}</h2><Empty text="촬영 과정을 적으면 여기에 보입니다." /></div>;
+  }
+
+  if (tpl === 'B') {
+    /* 가로 단계 */
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
+          {steps.map((s, i) => (
+            <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                background: shade(d.background, -5), borderRadius: 999,
+                padding: '9px 16px', fontSize: d.bodySize - 1,
+              }}>{s}</span>
+              {i < steps.length - 1 && <span style={{ color: d.primary }}>›</span>}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 style={titleStyle}>{menu.title}</h2>
+      <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', textAlign: 'left' }}>
+        {steps.map((line, i) => (
+          <li key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', paddingBottom: i === steps.length - 1 ? 0 : 14 }}>
+            <span style={{
+              flex: '0 0 auto', width: 26, height: 26, borderRadius: 13,
+              border: `2px solid ${d.primary}`, color: d.primary,
+              fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>{i + 1}</span>
+            <span style={{ paddingTop: 3 }}>{line}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+export function PrepareSection({ menu, project, titleStyle }: SectionProps) {
+  const d = project.design;
+  const tpl = menu.template ?? 'A';
+  const items = menu.lines.filter(Boolean);
+  if (items.length === 0) {
+    return <div><h2 style={titleStyle}>{menu.title}</h2><Empty text="준비사항을 적으면 여기에 보입니다." /></div>;
+  }
+
+  if (tpl === 'B') {
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {items.map((line, i) => (
+            <div key={i} style={{
+              background: shade(d.background, -4), borderRadius: d.photoRadius || 10,
+              padding: '16px', textAlign: 'left', fontSize: d.bodySize - 1,
+            }}>{line}</div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 style={titleStyle}>{menu.title}</h2>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 8, textAlign: 'left' }}>
+        {items.map((line, i) => (
+          <li key={i} style={{
+            border: `1px dashed ${shade(d.text, 60)}`, borderRadius: d.photoRadius || 8,
+            padding: '12px 16px',
+          }}>{line}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 가격표 · 상품 비교                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 촬영상품 여러 개를 한눈에.
+ *
+ * 한 장짜리 그림이 아니다. 상품명·가격·구성·사진이 **각각 고칠 수 있는 내용**이다.
+ * 미리보기에서 글자를 눌러 바로 고칠 수 있다.
+ */
+export function PackagesSection({ menu, project, titleStyle, bodyStyle, boxWidth, narrow, edit }: SectionProps) {
+  const d = project.design;
+  const list = project.packages ?? [];
+  const tpl = menu.template ?? 'A';
+  const photoById = (id: string) => project.photos.find((p) => p.id === id);
+
+  if (list.length === 0) {
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <Empty text="촬영상품을 넣으면 여기에 가격표가 만들어집니다." />
+      </div>
+    );
+  }
+
+  /* 표 — 상품이 많을 때 한눈에 비교하기 좋다 */
+  if (tpl === 'B') {
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        {menu.body && <p style={{ ...bodyStyle, marginBottom: 14 }}>{menu.body}</p>}
+        <div style={{ border: `1px solid ${shade(d.text, 55)}`, borderRadius: d.photoRadius, overflow: 'hidden' }}>
+          {list.map((it, i) => (
+            <div
+              key={it.id}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: narrow ? '1fr auto' : '1.2fr 2fr auto',
+                gap: 12, alignItems: 'center', textAlign: 'left',
+                padding: '14px 16px',
+                borderTop: i === 0 ? 'none' : `1px solid ${shade(d.text, 60)}`,
+              }}
+            >
+              <Editable as="b" on={!!edit} value={it.name} placeholder="상품명"
+                style={{ fontSize: d.bodySize + 1 }}
+                onSave={(v) => edit?.onPackage(it.id, 'name', v)} />
+              {!narrow && (
+                <span style={{ fontSize: d.bodySize - 2, opacity: .8 }}>
+                  {it.note || it.includes.split('\n').filter(Boolean).join(' · ')}
+                </span>
+              )}
+              {edit
+                ? <Editable as="b" on numeric value={it.price} display={formatWon(it.price) || it.price} placeholder="가격"
+                    style={{ fontSize: d.bodySize + 2, color: d.primary, whiteSpace: 'nowrap' }}
+                    onSave={(v) => edit.onPackage(it.id, 'price', v)} />
+                : <b style={{ fontSize: d.bodySize + 2, color: d.primary, whiteSpace: 'nowrap' }}>{formatWon(it.price) || it.price}</b>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* A — 상품 카드 나란히 */
+  const cols = narrow ? 1 : list.length >= 3 ? 3 : 2;
+  const gap = 12;
+  const cellW = Math.floor((boxWidth - gap * (cols - 1)) / cols);
+
+  return (
+    <div>
+      <h2 style={titleStyle}>{menu.title}</h2>
+      {menu.body && <p style={{ ...bodyStyle, marginBottom: 16 }}>{menu.body}</p>}
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap }}>
+        {list.map((it) => {
+          const photo = photoById(it.photoId);
+          const items = it.includes.split('\n').map((s) => s.trim()).filter(Boolean);
+          return (
+            <div
+              key={it.id}
+              style={{
+                border: `1px solid ${shade(d.text, 55)}`, borderRadius: d.photoRadius,
+                overflow: 'hidden', textAlign: 'left', background: shade(d.background, 98),
+              }}
+            >
+              {photo && (
+                <img
+                  src={photo.dataUrl}
+                  alt={photo.caption || photo.name}
+                  style={{
+                    display: 'block', width: '100%', height: Math.round(cellW * 0.66),
+                    objectFit: 'cover', objectPosition: photo.focusX + '% ' + photo.focusY + '%',
+                  }}
+                />
+              )}
+              <div style={{ padding: '14px 14px 16px' }}>
+                <Editable as="b" on={!!edit} value={it.name} placeholder="상품명"
+                  style={{ display: 'block', fontSize: d.bodySize + 1 }}
+                  onSave={(v) => edit?.onPackage(it.id, 'name', v)} />
+                {it.note && (
+                  <span style={{ display: 'block', marginTop: 4, fontSize: d.bodySize - 3, opacity: .75 }}>
+                    {it.note}
+                  </span>
+                )}
+                {edit
+                  ? <Editable as="p" on numeric value={it.price} display={formatWon(it.price) || it.price} placeholder="가격"
+                      style={{ margin: '10px 0 0', fontSize: d.titleSize - 10, fontWeight: 800, color: d.primary }}
+                      onSave={(v) => edit.onPackage(it.id, 'price', v)} />
+                  : <p style={{ margin: '10px 0 0', fontSize: d.titleSize - 10, fontWeight: 800, color: d.primary }}>{formatWon(it.price) || it.price}</p>}
+                {items.length > 0 && (
+                  <ul style={{ margin: '10px 0 0', padding: 0, listStyle: 'none', display: 'grid', gap: 4 }}>
+                    {items.map((x, k) => (
+                      <li key={k} style={{ fontSize: d.bodySize - 3, opacity: .85 }}>· {x}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 자유 영역                                                            */
+/* ------------------------------------------------------------------ */
+
+/** 정해진 틀에 없는 내용을 직접 적는 칸 — 제목 · 본문 · 사진 · 버튼 */
+export function FreeSection({ menu, project, titleStyle, bodyStyle }: SectionProps) {
+  const d = project.design;
+  return (
+    <div>
+      {menu.title && <h2 style={titleStyle}>{menu.title}</h2>}
+      {menu.body
+        ? <p style={bodyStyle}>{menu.body}</p>
+        : <Empty text="여기에 원하시는 내용을 적어주세요." />}
+      {menu.button && (
+        <div style={{ marginTop: 16 }}>
+          <span style={{
+            display: 'inline-block', background: d.primary, color: pickReadable(d.primary),
+            padding: '13px 28px', fontWeight: 700, fontSize: d.bodySize,
+            borderRadius: d.buttonStyle === 'pill' ? 999 : d.buttonStyle === 'round' ? 10 : 0,
+          }}>
+            {menu.button}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}

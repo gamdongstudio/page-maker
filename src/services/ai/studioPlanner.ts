@@ -1,0 +1,645 @@
+import type { MenuKind, Photo, ProjectData } from '@/types/project';
+import { shapeOf } from '@/utils/image';
+import { stripBanned } from './types';
+
+/**
+ * 사진관 상세페이지 자동 구성.
+ *
+ * 사진 몇 장과 촬영상품 이름만 있으면 상세페이지 한 벌을 통째로 짠다.
+ * 메뉴 구성 · 순서 · 제목 · 설명 · 사진 배치 · 검색 제목 · 대문 카피까지.
+ *
+ * ⚠ 지키는 것
+ *  1. 사진을 **새로 만들지 않는다.** 올린 사진을 고르고 놓기만 한다.
+ *     얼굴·표정·머리·옷·체형은 어떤 경우에도 건드리지 않는다. (docs/PHOTO-POLICY.md)
+ *  2. 가격·전화번호·주소처럼 **틀리면 안 되는 값은 지어내지 않는다.**
+ *     모르면 비워두고 "확인이 필요합니다" 라고 알린다.
+ *  3. 아직 진짜 AI 에 연결돼 있지 않다. 규칙으로 짠 결과라고 화면에 그대로 밝힌다.
+ */
+
+export interface PlannedMenu {
+  kind: MenuKind;
+  title: string;
+  body: string;
+  lines: string[];
+  photoIds: string[];
+  template: string;
+  /**
+   * 확인된 내용이 없어 숨겨두는 섹션.
+   * 없는 값을 지어내 채우지 않는다. 내용을 넣으면 사용자가 보이게 할 수 있다.
+   */
+  hidden?: boolean;
+}
+
+export interface StudioPlan {
+  sourceLabel: string;
+  productName: string;
+  searchTitles: string[];
+  heroCopy: string[];
+  subCopy: string;
+  audience: string;
+  mainPhotoId: string;
+  menus: PlannedMenu[];
+  /** 사용자가 확인해야 하는 것 */
+  needsCheck: string[];
+  /** 내용이 없어 숨겨둔 섹션 이름 */
+  hiddenTitles: string[];
+  /** 일반적인 내용으로 채워 둔 섹션 이름 (사진관에 맞게 고쳐야 한다) */
+  draftTitles: string[];
+}
+
+/* ------------------------------------------------------------------ */
+/* 촬영상품별 기본 구성                                                  */
+/* ------------------------------------------------------------------ */
+
+interface Recipe {
+  /** 이 상품으로 볼 낱말들 */
+  match: string[];
+  menus: MenuKind[];
+  audience: string;
+  benefits: string[];
+  concepts: string[];
+  process: string[];
+  prepare: string[];
+  faq: string[];
+  mood: string;
+}
+
+const BASE_PROCESS = ['예약 문의', '촬영일 상담', '촬영', '사진 고르기', '보정', '완성본 전달'];
+
+const RECIPES: Recipe[] = [
+  {
+    match: ['가족', '부모님', '환갑', '칠순', '대가족'],
+    menus: ['main', 'intro', 'recommend', 'shootConcept', 'benefit', 'event', 'perks', 'price', 'gallery', 'process', 'howto', 'prepare', 'caution', 'brand', 'review', 'cta'],
+    audience: '온 가족이 함께 기념이 될 사진을 남기고 싶은 분',
+    benefits: ['가족 모두가 편안하게 촬영할 수 있는 공간', '아이와 어르신 속도에 맞춘 촬영 진행', '오래 걸어둘 수 있는 보정과 액자'],
+    concepts: ['캐주얼', '리마인드', '경성', '정장'],
+    process: BASE_PROCESS,
+    prepare: ['가족끼리 색을 맞춘 옷차림', '촬영 30분 전 도착', '아이가 있다면 여벌 옷과 간식'],
+    faq: ['몇 명까지 촬영할 수 있나요?', '촬영 시간은 얼마나 걸리나요?', '주차는 가능한가요?'],
+    mood: '따뜻하고 편안한',
+  },
+  {
+    match: ['프로필', '오디션', '배우', '작가'],
+    menus: ['main', 'intro', 'recommend', 'shootConcept', 'benefit', 'event', 'price', 'gallery', 'process', 'howto', 'prepare', 'caution', 'brand', 'cta'],
+    audience: '나를 잘 보여줄 사진이 필요한 분',
+    benefits: ['표정과 각도를 함께 찾아가는 촬영', '용도에 맞춘 다양한 컷', '자연스러운 보정'],
+    concepts: ['내추럴', '시크', '밝은 톤', '흑백'],
+    process: BASE_PROCESS,
+    prepare: ['원하는 느낌의 참고 사진', '의상 2~3벌', '촬영 전날 충분한 휴식'],
+    faq: ['의상은 몇 벌 준비하면 되나요?', '헤어·메이크업도 되나요?', '사진은 언제 받을 수 있나요?'],
+    mood: '깔끔하고 세련된',
+  },
+  {
+    match: ['증명', '여권', '비자', '사원증', '학교'],
+    menus: ['main', 'intro', 'recommend', 'benefit', 'price', 'perks', 'process', 'prepare', 'caution', 'faq', 'brand', 'cta'],
+    audience: '규격에 맞는 사진이 바로 필요한 분',
+    benefits: ['규격에 맞춘 정확한 촬영', '당일 수령 가능', '자연스러운 기본 보정 포함'],
+    concepts: [],
+    process: ['방문 또는 예약', '촬영', '사진 확인', '보정', '인화·파일 전달'],
+    prepare: ['용도에 맞는 복장', '안경 착용 여부 확인'],
+    faq: ['예약 없이 가도 되나요?', '얼마나 걸리나요?', '파일도 받을 수 있나요?'],
+    mood: '깔끔한',
+  },
+  {
+    match: ['취업', '입사', '면접'],
+    menus: ['main', 'event', 'price', 'benefit', 'recommend', 'gallery', 'process', 'prepare', 'faq', 'cta'],
+    audience: '서류에 쓸 단정한 사진이 필요한 분',
+    benefits: ['업종에 맞는 표정과 자세 안내', '정장 대여 가능 여부 안내', '빠른 전달'],
+    concepts: [],
+    process: ['예약', '헤어·메이크업', '촬영', '사진 고르기', '보정', '파일 전달'],
+    prepare: ['정장 또는 단정한 상의', '지원 분야 알려주기'],
+    faq: ['정장 대여가 되나요?', '보정은 어디까지 해주시나요?', '당일 수령 되나요?'],
+    mood: '단정하고 신뢰감 있는',
+  },
+  {
+    match: ['아기', '베이비', '신생아', '백일', '돌'],
+    menus: ['main', 'event', 'perks', 'price', 'shootConcept', 'benefit', 'recommend', 'gallery', 'process', 'prepare', 'review', 'cta'],
+    audience: '아이의 지금 이 시기를 남겨두고 싶은 부모님',
+    benefits: ['아이 컨디션에 맞춘 여유로운 진행', '따뜻한 온도와 청결한 촬영 공간', '자연스러운 표정 위주의 촬영'],
+    concepts: ['내추럴', '한복', '테마', '가족과 함께'],
+    process: BASE_PROCESS,
+    prepare: ['수유·기저귀 용품', '여벌 옷', '아이가 좋아하는 장난감'],
+    faq: ['아이가 울면 어떻게 하나요?', '촬영 시간은 얼마나 걸리나요?', '부모님도 같이 찍을 수 있나요?'],
+    mood: '포근하고 다정한',
+  },
+  {
+    match: ['반려', '강아지', '고양이', '펫'],
+    menus: ['main', 'event', 'price', 'shootConcept', 'benefit', 'recommend', 'gallery', 'process', 'prepare', 'review', 'cta'],
+    audience: '반려동물과의 지금을 남기고 싶은 분',
+    benefits: ['반려동물이 편안하게 있을 수 있는 환경', '보호자와 함께 촬영 가능', '움직임에 맞춘 촬영'],
+    concepts: ['내추럴', '보호자와 함께', '테마'],
+    process: BASE_PROCESS,
+    prepare: ['평소 쓰던 간식과 장난감', '배변 패드', '목줄 또는 이동장'],
+    faq: ['활발한 아이도 촬영되나요?', '여러 마리도 가능한가요?', '보호자도 같이 나올 수 있나요?'],
+    mood: '밝고 사랑스러운',
+  },
+  {
+    match: ['웨딩', '리마인드', '커플', '우정', '한복'],
+    menus: ['main', 'event', 'perks', 'price', 'shootConcept', 'benefit', 'recommend', 'gallery', 'process', 'prepare', 'review', 'cta'],
+    audience: '둘이 함께한 시간을 남기고 싶은 분',
+    benefits: ['자연스러운 포즈 안내', '의상과 어울리는 배경 구성', '오래 두고 볼 수 있는 보정'],
+    concepts: ['클래식', '내추럴', '한복', '야외'],
+    process: BASE_PROCESS,
+    prepare: ['서로 어울리는 의상', '준비된 소품이 있다면 함께'],
+    faq: ['의상 대여가 되나요?', '촬영 시간은 얼마나 걸리나요?', '야외 촬영도 되나요?'],
+    mood: '감성적이고 고급스러운',
+  },
+  {
+    match: ['복원', '장수', '영정', '기념'],
+    menus: ['main', 'price', 'perks', 'benefit', 'recommend', 'gallery', 'process', 'prepare', 'faq', 'cta'],
+    audience: '오래된 사진을 되살리거나 기념 사진을 남기려는 분',
+    benefits: ['원본을 최대한 살린 복원', '편안한 분위기의 촬영', '액자까지 한 번에'],
+    concepts: [],
+    process: ['상담', '원본 확인 또는 촬영', '작업', '확인', '인화·액자 전달'],
+    prepare: ['복원할 원본 사진', '원하는 액자 크기'],
+    faq: ['많이 손상된 사진도 되나요?', '작업 기간은 얼마나 걸리나요?', '액자도 같이 되나요?'],
+    mood: '단정하고 정중한',
+  },
+  {
+    match: ['스냅', '행사', '야외', '돌잔치'],
+    menus: ['main', 'event', 'price', 'shootConcept', 'benefit', 'recommend', 'gallery', 'process', 'prepare', 'review', 'cta'],
+    audience: '그날의 분위기를 그대로 남기고 싶은 분',
+    benefits: ['현장 분위기를 살린 촬영', '자연스러운 순간 위주', '빠른 전달'],
+    concepts: ['야외', '실내', '흑백'],
+    process: BASE_PROCESS,
+    prepare: ['일정과 장소 알려주기', '꼭 담고 싶은 장면 미리 알려주기'],
+    faq: ['출장도 되나요?', '몇 시간 촬영하나요?', '원본도 받을 수 있나요?'],
+    mood: '자연스럽고 생생한',
+  },
+];
+
+/** 사용자가 직접 만든 촬영상품처럼 아는 낱말이 없을 때 */
+const FALLBACK: Recipe = {
+  match: [],
+  menus: ['main', 'event', 'price', 'shootConcept', 'benefit', 'recommend', 'gallery', 'process', 'prepare', 'faq', 'cta'],
+  audience: '이 촬영을 찾고 계신 분',
+  benefits: ['원하는 느낌을 먼저 듣고 시작하는 촬영', '편안한 분위기의 촬영 진행', '자연스러운 보정'],
+  concepts: ['기본', '추가 콘셉트'],
+  process: BASE_PROCESS,
+  prepare: ['원하는 느낌의 참고 사진', '촬영에 필요한 의상이나 소품'],
+  faq: ['촬영 시간은 얼마나 걸리나요?', '예약은 어떻게 하나요?', '사진은 언제 받을 수 있나요?'],
+  mood: '편안하고 정갈한',
+};
+
+export function recipeFor(productName: string): Recipe {
+  const name = (productName || '').replace(/\s/g, '');
+  const found = RECIPES.find((r) => r.match.some((m) => name.includes(m)));
+  return found ?? FALLBACK;
+}
+
+/* ------------------------------------------------------------------ */
+/* 본체                                                                */
+/* ------------------------------------------------------------------ */
+
+export function planStudioPage(project: ProjectData): StudioPlan {
+  const brief = project.shoot;
+  const studio = project.studio;
+  const product = (brief?.productName || '촬영').trim();
+  const area = (brief?.area || studio?.area || '').trim();
+  const shopName = (studio?.name || '').trim();
+  const recipe = recipeFor(product);
+  const wish = `${brief?.wish ?? ''} ${brief?.mood ?? ''} ${brief?.emphasis ?? ''}`.trim();
+  const mood = brief?.mood?.trim() || moodFromWish(wish) || recipe.mood;
+
+  /* ---- 사진 고르기 (새로 만들지 않는다. 있는 것 중에서 고른다) ---- */
+  const photos = project.photos;
+  const mainPhoto = pickMainPhoto(photos);
+  const spread = spreadPhotos(photos, mainPhoto?.id);
+
+  /* ---- 사용자의 요청을 구성에 반영 ---- */
+  let kinds = [...recipe.menus];
+  if (/가격|혜택|할인|이벤트/.test(wish)) kinds = moveEarlier(kinds, ['event', 'perks', 'price']);
+  if (/사진.*(많|위주)|갤러리/.test(wish)) kinds = moveEarlier(kinds, ['gallery']);
+  if (photos.length === 0) kinds = kinds.filter((k) => k !== 'gallery');
+
+  const needsCheck: string[] = [];
+  if (!shopName) needsCheck.push('사진관 상호가 비어 있습니다.');
+  if (!area) needsCheck.push('지역이 비어 있습니다. 검색용 제목에 지역을 넣으면 좋습니다.');
+  if (!project.pricing?.eventPrice && !project.pricing?.listPrice) {
+    needsCheck.push('가격을 아직 확인하지 못했습니다. 직접 넣어주세요. (임의로 만들지 않았습니다)');
+  }
+  if (!studio?.phone && !studio?.bookingUrl) {
+    needsCheck.push('전화번호나 예약링크가 없습니다. 마지막 예약·문의에 넣어주세요.');
+  }
+  if (photos.length === 0) needsCheck.push('사진이 아직 없습니다. 사진을 넣으면 배치까지 만들어 드립니다.');
+  const menus: PlannedMenu[] = kinds.map((kind) =>
+    buildMenu(kind, {
+      product, area, shopName, mood, recipe, project, spread, mainPhoto,
+      portraitCount: photos.filter((ph) => shapeOf(ph) === 'portrait').length,
+      emphasis: brief?.emphasis ?? '',
+    }),
+  );
+
+  const hiddenTitles = menus.filter((m) => m.hidden).map((m) => m.title);
+  const draftTitles = menus
+    .filter((m) => !m.hidden && DRAFT_KINDS.includes(m.kind))
+    .map((m) => m.title);
+
+  return {
+    sourceLabel:
+      '넣어주신 자료와 촬영상품을 규칙대로 정리한 결과입니다. (진짜 AI 연결 전 · 사진은 올리신 것을 고르기만 합니다)',
+    productName: product,
+    searchTitles: searchTitles(product, area, shopName, recipe, brief?.emphasis ?? ''),
+    heroCopy: heroCopy(product, mood, area, brief?.emphasis ?? ''),
+    subCopy: subCopy(product, area, shopName),
+    audience: recipe.audience,
+    mainPhotoId: mainPhoto?.id ?? '',
+    menus,
+    needsCheck,
+    hiddenTitles,
+    draftTitles,
+  };
+}
+
+/** 사진관마다 다를 수 있어 '일반적인 내용'으로 채워 둔 섹션 */
+const DRAFT_KINDS: MenuKind[] = ['benefit', 'recommend', 'process', 'prepare', 'faq'];
+
+/* ------------------------------------------------------------------ */
+/* 메뉴 하나 만들기                                                     */
+/* ------------------------------------------------------------------ */
+
+interface Ctx {
+  product: string;
+  area: string;
+  shopName: string;
+  mood: string;
+  recipe: Recipe;
+  project: ProjectData;
+  spread: Map<MenuKind, string[]>;
+  mainPhoto: Photo | null;
+  /** 세로 사진이 몇 장인지 — 콘셉트 모양을 고를 때 쓴다 */
+  portraitCount: number;
+  /** 강조해달라고 적어주신 내용 */
+  emphasis: string;
+}
+
+/**
+ * 섹션 하나 만들기.
+ *
+ * 규칙
+ *  - 확인된 값이 있으면 그것을 쓴다.
+ *  - 없으면 **지어내지 않고** 그 섹션을 숨긴다. (샘플 글이 결과에 섞이면 안 된다)
+ *  - 모양(템플릿)은 내용 양과 사진 모양을 보고 알맞은 것을 고른다.
+ */
+function buildMenu(kind: MenuKind, c: Ctx): PlannedMenu {
+  const photoIds = c.spread.get(kind) ?? [];
+  const base = { kind, photoIds, lines: [] as string[], template: 'A' };
+  const pr = c.project.pricing;
+  const ev = c.project.event;
+  const perks = c.project.perks ?? [];
+
+  switch (kind) {
+    case 'main':
+      return {
+        ...base,
+        title: '메인',
+        photoIds: c.mainPhoto ? [c.mainPhoto.id] : [],
+        body: '',
+      };
+
+    case 'event': {
+      const has = !!(ev?.title || ev?.body || ev?.eventPrice || ev?.period);
+      return {
+        ...base,
+        title: ev?.title || '이벤트',
+        body: ev?.body ?? '',
+        template: pickEventTemplate(ev, photoIds.length),
+        hidden: !has,
+      };
+    }
+
+    case 'perks': {
+      const lines = perks.map((p) => (p.body ? `${p.title} | ${p.body}` : p.title));
+      return {
+        ...base,
+        title: '특별한 혜택',
+        body: '',
+        lines,
+        template: pickPerkTemplate(lines.length, photoIds.length),
+        hidden: lines.length === 0,
+      };
+    }
+
+    case 'price': {
+      const has = !!(pr?.listPrice || pr?.eventPrice || pr?.includes);
+      const includeCount = (pr?.includes ?? '').split('\n').filter((x) => x.trim()).length;
+      return {
+        ...base,
+        title: '가격 안내',
+        body: '',
+        template: pickPriceTemplate(pr?.listPrice, pr?.eventPrice, includeCount),
+        hidden: !has,
+      };
+    }
+
+    case 'shootConcept': {
+      const own = (c.project.concepts ?? []).map((x) => x.name).filter(Boolean);
+      const names = own.length ? own : c.recipe.concepts;
+      return {
+        ...base,
+        title: `${c.product} 콘셉트`,
+        body: `${c.mood} 느낌으로 담아드립니다.`,
+        lines: names,
+        template: pickConceptTemplate(names.length, photoIds.length, c.portraitCount),
+        hidden: names.length === 0,
+      };
+    }
+
+    case 'benefit':
+      return {
+        ...base,
+        title: c.shopName ? `${c.shopName}의 장점` : '우리 사진관의 장점',
+        body: c.recipe.benefits.join('\n'),
+        template: c.recipe.benefits.length >= 4 ? 'B' : 'A',
+      };
+
+    case 'recommend': {
+      const lines = recommendLines(c.product, c.recipe, c.emphasis);
+      return {
+        ...base,
+        title: '이런 분께 추천합니다',
+        body: c.recipe.audience,
+        lines,
+        template: lines.length >= 4 ? 'B' : 'A',
+      };
+    }
+
+    case 'gallery':
+      return {
+        ...base,
+        title: '갤러리',
+        body: '',
+        template: pickGalleryTemplate(photoIds.length),
+        hidden: photoIds.length === 0,
+      };
+
+    case 'process':
+      return {
+        ...base,
+        title: '촬영 과정',
+        body: '',
+        lines: c.recipe.process,
+        template: c.recipe.process.length >= 5 ? 'A' : 'B',
+      };
+
+    case 'prepare':
+      return {
+        ...base,
+        title: '준비사항',
+        body: '',
+        lines: c.recipe.prepare,
+        template: c.recipe.prepare.length >= 4 ? 'B' : 'A',
+      };
+
+    case 'review':
+      /* 후기는 실제로 받은 것만 쓸 수 있다. 지어내지 않는다. */
+      return { ...base, title: '후기', body: '', hidden: true };
+
+    case 'intro': {
+      const text = c.project.product.description.trim();
+      return { ...base, title: `${c.product} 소개`, body: text, hidden: !text };
+    }
+
+    case 'howto': {
+      const text = c.project.product.howToUse.trim();
+      return { ...base, title: '의상·헤어·메이크업', body: text, hidden: !text };
+    }
+
+    case 'caution': {
+      const text = c.project.product.caution.trim();
+      return { ...base, title: '유의사항', body: text, hidden: !text };
+    }
+
+    case 'brand': {
+      const text = (c.project.studio?.intro ?? '').trim();
+      return { ...base, title: c.shopName ? `${c.shopName} 소개` : '사진관 소개', body: text, hidden: !text };
+    }
+
+    case 'faq':
+      return { ...base, title: '자주 묻는 질문', body: '', lines: c.recipe.faq };
+
+    case 'cta':
+      return {
+        ...base,
+        title: '예약·문의',
+        body: bookingText(c),
+        template: 'A',
+      };
+
+    default:
+      return { ...base, title: kind, body: '' };
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 알맞은 모양 고르기 — 내용 양과 사진 모양을 보고 정한다                  */
+/* ------------------------------------------------------------------ */
+
+export function pickPerkTemplate(count: number, photos: number): string {
+  if (count === 0) return 'A';
+  if (photos >= count) return 'C';       // 혜택마다 사진이 있으면 사진 + 설명
+  if (count <= 3) return 'A';            // 셋 이하는 번호를 크게
+  if (count <= 6) return 'B';            // 넷~여섯은 카드 두 줄
+  return 'E';                            // 많으면 세로로 길게
+}
+
+export function pickPriceTemplate(list?: string, event?: string, includes = 0): string {
+  const l = num(list);
+  const e = num(event);
+  const off = l && e && e < l ? (1 - e / l) * 100 : 0;
+  if (off >= 25) return 'C';             // 할인이 크면 정상가 → 할인가
+  if (includes >= 4) return 'D';         // 포함사항이 많으면 그것 중심
+  if (includes >= 1) return 'B';         // 패키지 카드
+  return 'A';
+}
+
+export function pickEventTemplate(ev: { listPrice?: string; eventPrice?: string; period?: string } | undefined, photos: number): string {
+  const l = num(ev?.listPrice);
+  const e = num(ev?.eventPrice);
+  const off = l && e && e < l ? (1 - e / l) * 100 : 0;
+  if (off >= 30) return 'A';             // 할인율이 크면 크게 강조
+  if (photos > 0) return 'B';            // 사진이 있으면 사진 + 가격
+  if (ev?.period) return 'C';            // 기간이 있으면 배너
+  return 'D';
+}
+
+export function pickConceptTemplate(names: number, photos: number, portraits: number): string {
+  if (photos >= 3) return 'D';           // 사진이 많으면 콜라주
+  if (portraits >= 2) return 'B';        // 세로가 많으면 사진 왼쪽 / 설명 오른쪽
+  if (names >= 4) return 'E';            // 콘셉트가 많으면 카드 갤러리
+  return 'A';
+}
+
+export function pickGalleryTemplate(photos: number): string {
+  if (photos >= 5) return 'D';           // 많으면 모자이크
+  if (photos >= 3) return 'A';           // 격자
+  if (photos === 2) return 'C';          // 두 장 나란히
+  return 'B';                            // 한 장은 크게
+}
+
+function num(v?: string): number {
+  return Number(String(v ?? '').replace(/[^\d]/g, '')) || 0;
+}
+
+function bookingText(c: Ctx): string {
+  const s = c.project.studio;
+  const lines: string[] = [];
+  if (s?.phone) lines.push(`전화 ${s.phone}`);
+  if (s?.hours) lines.push(`영업시간 ${s.hours}`);
+  if (s?.offDays) lines.push(`휴무 ${s.offDays}`);
+  if (s?.address) lines.push(s.address);
+  /* 없는 정보를 지어내지 않는다 */
+  return lines.length ? lines.join('\n') : '예약 방법과 문의처를 적어주세요.';
+}
+
+function recommendLines(product: string, recipe: Recipe, emphasis: string): string[] {
+  const p = product || '촬영';
+  const out = [
+    `${josaEul(p)} 처음 찍어보시는 분`,
+    recipe.audience,
+    '어떤 느낌이 좋을지 아직 못 정하신 분',
+  ];
+  /* 강조해달라고 적어주신 내용이 있으면 그대로 살린다 */
+  const want = emphasis.trim();
+  if (want) out.unshift(`${want} 준비하고 계신 분`);
+  return out;
+}
+
+/* ------------------------------------------------------------------ */
+/* 제목과 카피                                                          */
+/* ------------------------------------------------------------------ */
+
+/** 검색용 제목 — 정보 중심 (과장 표현은 쓰지 않는다) */
+export function searchTitles(
+  product: string, area: string, shop: string, recipe?: Recipe, emphasis = '',
+): string[] {
+  const p = product || '사진 촬영';
+  const a = area ? `${area} ` : '';
+  const want = emphasis.trim();
+  const out = [
+    `${a}${p} 촬영`,
+    want ? `${a}${want} ${p}` : `${a}${p} 예약 안내`,
+    shop ? `${a}${shop} ${p}` : `${a}${p} 가격 안내`,
+    recipe?.concepts[0] ? `${a}${recipe.concepts[0]} ${p}` : `${a}${p} 스튜디오`,
+  ];
+  /* 같은 낱말을 억지로 반복하지 않는다 */
+  return [...new Set(out.map((t) => stripBanned(t.trim())))].filter(Boolean);
+}
+
+/** 대문 카피 — 고객 설득 중심 (검색 제목과 역할이 다르다) */
+export function heroCopy(product: string, mood: string, area = '', emphasis = ''): string[] {
+  /* '가족사진' → '가족' 처럼 끝의 '사진'을 떼어 말이 자연스럽게 만든다 */
+  const subject = (product || '오늘').replace(/사진$/, '') || '오늘';
+  const want = emphasis.trim();
+  const out = [
+    `오늘의 ${josaEul(subject)} 오래 기억하는 방법`,
+    `${mood} 순간으로 남겨드립니다`,
+  ];
+  if (want) out.unshift(`${want}, 오래 남을 한 장으로`);
+  if (area) out.push(`${area}에서 남기는 ${subject}의 하루`);
+  out.push('오래 두고 볼수록 좋은 사진');
+  return [...new Set(out.map(stripBanned))];
+}
+
+function subCopy(product: string, area: string, shop: string): string {
+  const where = area ? `${area}에서 ` : '';
+  const who = shop ? `${shop}이 ` : '';
+  return stripBanned(`${where}${who}${product || '촬영'}을 준비합니다.`.replace('  ', ' '));
+}
+
+function moodFromWish(wish: string): string {
+  if (!wish) return '';
+  if (/고급|럭셔리|우아/.test(wish)) return '고급스러운';
+  if (/따뜻|포근|정겨/.test(wish)) return '따뜻한';
+  if (/감성|분위기/.test(wish)) return '감성적인';
+  if (/밝|화사|경쾌/.test(wish)) return '밝고 화사한';
+  if (/깔끔|심플|단정/.test(wish)) return '깔끔한';
+  return '';
+}
+
+/* ------------------------------------------------------------------ */
+/* 사진 고르기·배치 — 있는 사진을 고르기만 한다                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 대표사진 고르기.
+ * 사용자가 이미 정해뒀으면 그대로 둔다. (사람이 정한 것을 뒤집지 않는다)
+ */
+export function pickMainPhoto(photos: Photo[]): Photo | null {
+  if (photos.length === 0) return null;
+  const chosen = photos.find((p) => p.kind === 'main');
+  if (chosen) return chosen;
+  /* 가로 사진이 대문에 안정적이다. 없으면 첫 사진. */
+  return photos.find((p) => shapeOf(p) === 'landscape') ?? photos[0];
+}
+
+/**
+ * 메뉴별로 사진 나눠주기.
+ *  - 같은 사진을 여러 곳에 반복해서 쓰지 않는다
+ *  - 세로 사진은 둘씩 짝지어 나란히 놓이게 둔다
+ *  - 가로 사진은 넓게 보이는 자리에 둔다
+ */
+export function spreadPhotos(photos: Photo[], mainId?: string): Map<MenuKind, string[]> {
+  const out = new Map<MenuKind, string[]>();
+  const rest = photos.filter((p) => p.id !== mainId);
+  if (rest.length === 0) return out;
+
+  const portraits = rest.filter((p) => shapeOf(p) === 'portrait');
+  const others = rest.filter((p) => shapeOf(p) !== 'portrait');
+  const queue = [...others, ...portraits];
+  const take = (n: number) => queue.splice(0, Math.min(n, queue.length)).map((p) => p.id);
+
+  /* 콘셉트에는 세로 2장을 우선 (나란히 놓인다) */
+  const conceptPair = portraits.slice(0, 2).map((p) => p.id);
+  if (conceptPair.length === 2) {
+    conceptPair.forEach((id) => {
+      const i = queue.findIndex((p) => p.id === id);
+      if (i >= 0) queue.splice(i, 1);
+    });
+    out.set('shootConcept', conceptPair);
+  } else {
+    out.set('shootConcept', take(2));
+  }
+
+  /*
+   * 사진관에서는 갤러리가 가장 중요한 자리다.
+   * 장식용으로 한 장씩 빼가느라 갤러리가 비어버리면 안 되므로
+   * 사진이 넉넉할 때만 다른 칸에 한 장씩 나눠준다.
+   */
+  const spare = queue.length - 3;
+  if (spare > 0) out.set('event', take(1));
+  if (spare > 1) out.set('perks', take(1));
+  if (spare > 2) out.set('benefit', take(1));
+
+  /* 남은 사진은 전부 갤러리로 — 버리지 않는다 */
+  const left = queue.map((p) => p.id);
+  if (left.length) out.set('gallery', left);
+
+  return out;
+}
+
+function moveEarlier(kinds: MenuKind[], wanted: MenuKind[]): MenuKind[] {
+  const picked = kinds.filter((k) => wanted.includes(k));
+  const rest = kinds.filter((k) => !wanted.includes(k));
+  /* 메인 바로 다음으로 올린다 */
+  const head = rest.slice(0, 1);
+  return [...head, ...picked, ...rest.slice(1)];
+}
+
+/* ------------------------------------------------------------------ */
+/* 한국어 조사                                                          */
+/* ------------------------------------------------------------------ */
+
+/** 받침이 있으면 '을', 없으면 '를' */
+export function josaEul(word: string): string {
+  return word + (hasJong(word) ? '을' : '를');
+}
+
+function hasJong(word: string): boolean {
+  const last = word.trim().slice(-1);
+  const code = last.charCodeAt(0);
+  if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 !== 0;
+  /* 숫자도 읽는 소리로 따진다 */
+  if (/[0-9]/.test(last)) return !'2459'.includes(last);
+  return false;
+}

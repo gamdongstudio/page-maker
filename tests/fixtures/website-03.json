@@ -1,0 +1,27 @@
+{
+  "url": "https://www.studiosang.com/",
+  "sourceType": "website",
+  "title": "스튜디오 상 | STUDIO SANG",
+  "description": "스튜디오 상(象)은 한국 후지필름의 고품격 인물 사진을 전문으로 하는 하이엔드 포토 스튜디오 입니다.",
+  "text": "SESSION & PORTFOLIO\nIndividual Portrait신뢰와 전문성이 담긴 프로필 사진부터예술적 감성을 살린 프로필 사진까지 상상했던 자신의이상적인 이미지를 누구나 실현할 수 있습니다.\nmore+ 더보기 go",
+  "imageCount": 12,
+  "images": [
+    {
+      "url": "https://github.com/choinooki/nookitokki/blob/main/%EC%8A%A4%ED%8A%9C%EB%94%94%EC%98%A4%EC%83%81%20%ED%9D%B0%EC%83%89@4x.png?raw=true",
+      "width": 925,
+      "height": 926
+    },
+    {
+      "url": "https://cdn.imweb.me/thumbnail/20241025/71db67f97f6c2.jpg",
+      "width": 1920,
+      "height": 1280
+    },
+    {
+      "url": "https://cdn.imweb.me/thumbnail/20241025/4221e6f4c8fc1.jpg",
+      "width": 1920,
+      "height": 1280
+    }
+  ],
+  "hours": null,
+  "savedAt": "2026-09-15"
+}

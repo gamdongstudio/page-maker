@@ -1,0 +1,13 @@
+{
+  "name": "saypagemaker-collector",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "링크로 가져오기 — 공개 페이지를 읽어 상세페이지 자료로 돌려주는 작은 서비스",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "express": "^4.21.2",
+    "playwright": "^1.49.1"
+  }
+}

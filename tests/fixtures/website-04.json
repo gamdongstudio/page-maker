@@ -1,0 +1,27 @@
+{
+  "url": "http://www.neophoto.co.kr",
+  "sourceType": "website",
+  "title": "NeoPhoto",
+  "description": "동시대 사진과 이미지 문화를 탐구하는 비주얼 아트 스튜디오 NeoPhoto",
+  "text": "NeoPhoto는 동시대 사진과\n이미지 문화를 새롭게 탐구하는 비주얼 아트 스튜디오다.\n사진 매체의 전통적 경계를 확장해, 전시·퍼블리케이션·디지털 플랫폼을\n넘나들며 새로운 시각적 언어를 제안한다. 국내외 작가, 연구자,\n기관과 협력하며 이미지가 사회와 기술, 예술 속에서 어떤 관계를\n맺는지 탐색한다. 사진을 기록 너머 감각과 사유가 교차하는 장으로 전환한다.",
+  "imageCount": 5,
+  "images": [
+    {
+      "url": "http://neophoto.co.kr/work/1.JPG",
+      "width": 6000,
+      "height": 4000
+    },
+    {
+      "url": "http://neophoto.co.kr/work/2.JPG",
+      "width": 6000,
+      "height": 4000
+    },
+    {
+      "url": "http://neophoto.co.kr/work/3.JPG",
+      "width": 5472,
+      "height": 3648
+    }
+  ],
+  "hours": null,
+  "savedAt": "2026-09-15"
+}
