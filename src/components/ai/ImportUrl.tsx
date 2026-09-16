@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useProject } from '@/store/ProjectStore';
 import {
-  toolsStatus, forgetTools, collectFromUrl, checkUrl, guessSource, photoSrc,
+  toolsStatus, forgetTools, collectFromUrl, checkUrl, guessSource, photoSrc, onPublicAddress,
   SOURCE_LABEL,
   SOURCE_READINESS, type ImportResult, type ToolsStatus,
 } from '@/services/import/baroduTools';
@@ -204,11 +204,12 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
         <div className="note note--warn">
           {tools.state === 'stopped' ? (
             <>
-              <b>BARODU Tools가 꺼져 있습니다.</b>
+              <b>BARODU Tools와 연결되지 않았습니다.</b>
               <br />시작 메뉴에서 <b>BARODU Tools</b>를 실행한 뒤 <b>다시 확인</b>을 눌러주세요.
               <br /><span className="field__hint">
                 제작기가 다른 프로그램을 대신 켤 수는 없습니다.
               </span>
+              {onPublicAddress() && <LocalNetworkHelp />}
             </>
           ) : (
             <>
@@ -226,9 +227,9 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
               </span>
               <span className="field__hint">
                 BARODU 공식 배포 파일입니다. 네이버 비밀번호는 저장하지 않습니다.
-                <br />처음 실행할 때 Windows 확인 창이 뜨면 <b>추가 정보 → 실행</b>을 눌러주세요.
-                <br />브라우저가 이 기기 접근 허용을 물으면 <b>허용</b>을 눌러주세요.
+                <br />처음 설치할 때 Windows 보안 안내가 나타날 수 있습니다. <b>추가 정보 → 실행</b>을 눌러주세요.
               </span>
+              {onPublicAddress() && <LocalNetworkHelp />}
             </>
           )}
           <br /><br />
@@ -401,6 +402,26 @@ const PRODUCT_WORDS = [
 function productsIn(got: ImportResult): string[] {
   const hay = [got.title, got.description, got.text].filter(Boolean).join('\n');
   return PRODUCT_WORDS.filter((w) => hay.includes(w));
+}
+
+/**
+ * 인터넷 주소의 제작기가 이 컴퓨터의 BARODU Tools 에 닿으려면
+ * Chrome 에서 '로컬 네트워크 접근' 을 허용해야 한다. 우회하지 않고 방법만 알린다.
+ */
+function LocalNetworkHelp() {
+  return (
+    <span className="field__hint">
+      <br />BARODU Tools와 연결하려면 Chrome에서 <b>"로컬 네트워크 접근"</b> 권한을 허용해주세요.
+      <details className="lnahelp">
+        <summary>설정 방법 보기</summary>
+        <ol>
+          <li>처음 연결할 때 Chrome이 허용할지 물으면 <b>허용</b>을 누릅니다.</li>
+          <li>이미 차단했다면 주소창 왼쪽 아이콘 → <b>사이트 설정</b>에서 <b>로컬 네트워크 접근</b>을 <b>허용</b>으로 바꿉니다.</li>
+          <li>이 페이지를 새로고침한 뒤 <b>다시 확인</b>을 누릅니다.</li>
+        </ol>
+      </details>
+    </span>
+  );
 }
 
 /** 이미 적어두신 값이 있고 가져온 값과 다르면 그 값을 돌려준다 */

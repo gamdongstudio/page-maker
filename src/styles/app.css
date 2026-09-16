@@ -1311,3 +1311,9 @@ button,input,textarea,select{font-family:inherit}
 .ttbar__preset,.ttbar__align,.ttbar__size{flex-wrap:wrap}
 .ttbar__btn--wide{max-width:100%;overflow:hidden}
 .ttbar__btn--wide span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* BARODU Tools 연결 — Chrome 로컬 네트워크 접근 안내 (작게) */
+.lnahelp{margin-top:4px}
+.lnahelp summary{cursor:pointer;text-decoration:underline;display:inline}
+.lnahelp ol{margin:4px 0 0 18px;padding:0}
+.lnahelp li{margin:2px 0}
