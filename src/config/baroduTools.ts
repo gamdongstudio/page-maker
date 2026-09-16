@@ -34,10 +34,10 @@ export const BARODU_TOOLS = {
    * 배포를 시작하면 이 값 하나만 채우면 [설치] 버튼이 바로 동작한다.
    * 비어 있으면 파일 위치를 안내하는 방식으로 바뀐다.
    */
-  installerUrl: '',
+  installerUrl: 'https://github.com/gamdongstudio/barodu-tools/releases/latest/download/BARODU-Tools-Setup.exe',
 
   /** 설치파일 이름 — 주소가 없을 때 어디를 찾으면 되는지 알려주기 위해 */
-  installerFileName: 'BARODU Tools Setup.exe',
+  installerFileName: 'BARODU-Tools-Setup.exe',
 
   /** 한 번 찾은 자리를 기억해 두는 곳 (다음에 더 빨리 찾는다) */
   rememberKey: 'barodu.tools.port',

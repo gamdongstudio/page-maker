@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useProject } from '@/store/ProjectStore';
 import {
-  toolsStatus, forgetTools, collectFromUrl, checkUrl, guessSource, photoSrc, onPublicAddress,
+  toolsStatus, forgetTools, collectFromUrl, checkUrl, guessSource, photoSrc,
   SOURCE_LABEL,
   SOURCE_READINESS, type ImportResult, type ToolsStatus,
 } from '@/services/import/baroduTools';
@@ -53,9 +53,6 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
   };
 
   const busy = phase !== '';
-
-  /* 공개 주소에서는 BARODU Tools 가 이어지지 않는다 — 안 된다고 그대로 알린다 */
-  const isPublic = onPublicAddress();
 
   /* ---------------------------------------------------------------- */
 
@@ -170,7 +167,7 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
         <i className={'importstate__dot is-' + tools.state} />
         {tools.label}
         {tools.state === 'connected' && tools.version ? ` · ${tools.version}` : ''}
-        {needTools && !isPublic && (
+        {needTools && (
           <button className="linkbtn" onClick={() => void recheck()}>다시 확인</button>
         )}
       </p>
@@ -214,37 +211,25 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
               </span>
             </>
           ) : (
-            isPublic ? (
-              <>
-                <b>이 주소에서는 링크로 가져오기를 쓸 수 없습니다.</b>
-                <br />링크를 읽어오는 일은 <b>BARODU Tools</b>가 맡는데,
-                BARODU Tools는 컴퓨터에 설치된 제작기에서만 답하도록 만들어져 있습니다.
-                <br /><span className="field__hint">
-                  설치하셔도 이 인터넷 주소에서는 동작하지 않습니다.
-                  링크로 가져오기가 필요하시면 컴퓨터에 설치한 제작기에서 해주세요.
-                </span>
-              </>
-            ) : (
-              <>
-                <b>BARODU Tools가 필요합니다.</b>
-                <br />네이버 블로그, 스마트플레이스, 기존 홈페이지에서 정보를 가져오려면
-                BARODU Tools가 필요합니다.
-                <br /><span className="field__hint">
-                  한 번 설치하면 블로그 자동화 등 다른 BARODU 기능에서도 함께 쓸 수 있습니다.
-                </span>
-                <br />
+            <>
+              <b>BARODU Tools</b>
+              <br />링크에서 기존 정보를 자동으로 가져올 때 필요한 BARODU 공식 도구입니다.
+              <span className="importerr__btns">
                 {BARODU_TOOLS.installerUrl ? (
-                  <a className="btn btn--line" href={BARODU_TOOLS.installerUrl} target="_blank" rel="noreferrer">
-                    BARODU Tools 설치
+                  <a className="btn btn--line" href={BARODU_TOOLS.installerUrl} rel="noreferrer">
+                    BARODU Tools 다운로드
                   </a>
                 ) : (
-                  <span className="field__hint">
-                    설치파일: <code>{BARODU_TOOLS.installerFileName}</code>
-                    <br />설치가 끝나면 <b>다시 확인</b>을 눌러주세요.
-                  </span>
+                  <span className="field__hint">설치파일: <code>{BARODU_TOOLS.installerFileName}</code></span>
                 )}
-              </>
-            )
+                <button className="btn btn--line" onClick={() => void recheck()}>설치 후 다시 확인</button>
+              </span>
+              <span className="field__hint">
+                BARODU 공식 배포 파일입니다. 네이버 비밀번호는 저장하지 않습니다.
+                <br />처음 실행할 때 Windows 확인 창이 뜨면 <b>추가 정보 → 실행</b>을 눌러주세요.
+                <br />브라우저가 이 기기 접근 허용을 물으면 <b>허용</b>을 눌러주세요.
+              </span>
+            </>
           )}
           <br /><br />
           아래 <b>내용 붙여넣기</b>와 <b>사진 직접 추가</b>는 지금도 그대로 쓸 수 있습니다.
