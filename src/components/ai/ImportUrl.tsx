@@ -54,6 +54,17 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
 
   const busy = phase !== '';
 
+  /**
+   * 이 화면이 **공개 주소(인터넷)** 에서 열렸는지.
+   *
+   * BARODU Tools 는 이 컴퓨터 안에서만 답하도록 만들어져 있다.
+   * 그래서 인터넷 주소로 열었을 때는 설치를 해도 링크 가져오기가 되지 않는다.
+   * 된다고 안내하면 안 되므로, 이때는 **안 된다고 그대로** 알린다.
+   */
+  const onPublicAddress =
+    typeof window !== 'undefined' &&
+    !/^(localhost|127.0.0.1)$/.test(window.location.hostname);
+
   /* ---------------------------------------------------------------- */
 
   const run = async () => {
@@ -167,7 +178,7 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
         <i className={'importstate__dot is-' + tools.state} />
         {tools.label}
         {tools.state === 'connected' && tools.version ? ` · ${tools.version}` : ''}
-        {needTools && (
+        {needTools && !onPublicAddress && (
           <button className="linkbtn" onClick={() => void recheck()}>다시 확인</button>
         )}
       </p>
@@ -211,26 +222,37 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
               </span>
             </>
           ) : (
-            <>
-              <b>BARODU Tools가 필요합니다.</b>
-              <br />네이버 블로그, 스마트플레이스, 기존 홈페이지에서 정보를 가져오려면
-              링크에서 기존 정보를 자동으로 가져오려면 BARODU Tools가 필요합니다.
-              한 번 설치하면 블로그 자동화 등 다른 BARODU 기능에서도 함께 사용할 수 있습니다.
-              <br /><span className="field__hint">
-                한 번 설치하면 이후 BARODU 프로그램에서 함께 사용할 수 있습니다.
-              </span>
-              <br />
-              {BARODU_TOOLS.installerUrl ? (
-                <a className="btn btn--line" href={BARODU_TOOLS.installerUrl} target="_blank" rel="noreferrer">
-                  BARODU Tools 설치
-                </a>
-              ) : (
-                <span className="field__hint">
-                  설치파일: <code>{BARODU_TOOLS.installerFileName}</code>
-                  <br />설치가 끝나면 <b>다시 확인</b>을 눌러주세요.
+            onPublicAddress ? (
+              <>
+                <b>이 주소에서는 링크로 가져오기를 쓸 수 없습니다.</b>
+                <br />링크를 읽어오는 일은 <b>BARODU Tools</b>가 맡는데,
+                BARODU Tools는 컴퓨터에 설치된 제작기에서만 답하도록 만들어져 있습니다.
+                <br /><span className="field__hint">
+                  설치하셔도 이 인터넷 주소에서는 동작하지 않습니다.
+                  링크로 가져오기가 필요하시면 컴퓨터에 설치한 제작기에서 해주세요.
                 </span>
-              )}
-            </>
+              </>
+            ) : (
+              <>
+                <b>BARODU Tools가 필요합니다.</b>
+                <br />네이버 블로그, 스마트플레이스, 기존 홈페이지에서 정보를 가져오려면
+                BARODU Tools가 필요합니다.
+                <br /><span className="field__hint">
+                  한 번 설치하면 블로그 자동화 등 다른 BARODU 기능에서도 함께 쓸 수 있습니다.
+                </span>
+                <br />
+                {BARODU_TOOLS.installerUrl ? (
+                  <a className="btn btn--line" href={BARODU_TOOLS.installerUrl} target="_blank" rel="noreferrer">
+                    BARODU Tools 설치
+                  </a>
+                ) : (
+                  <span className="field__hint">
+                    설치파일: <code>{BARODU_TOOLS.installerFileName}</code>
+                    <br />설치가 끝나면 <b>다시 확인</b>을 눌러주세요.
+                  </span>
+                )}
+              </>
+            )
           )}
           <br /><br />
           아래 <b>내용 붙여넣기</b>와 <b>사진 직접 추가</b>는 지금도 그대로 쓸 수 있습니다.
