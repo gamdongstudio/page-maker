@@ -15,7 +15,7 @@ export const IMAGE_POLICY = {
   maxFileSize: 10 * 1024 * 1024,
   /** 이보다 가로폭이 작으면 저해상도로 보고 안내한다 */
   lowResolutionWidth: 640,
-  /** 내보낸 JPG 한 장의 권장 최대 높이 (px) — 너무 길면 업로드가 어려움 */
+  /** 내보낸 JPG 한 장의 최대 높이 (저장되는 그림 기준 px) — 너무 길면 업로드가 어려움 */
   maxSliceHeight: 3000,
   /** 내보내기 품질 (0~1) */
   exportQuality: 0.92,

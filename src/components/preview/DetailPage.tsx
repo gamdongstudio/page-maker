@@ -15,6 +15,7 @@ import { Editable } from './Editable';
 import type { PreviewEdit } from './editApi';
 import { EditingContext } from './editing';
 import { hasContent } from './sectionContent';
+import { cutMarkColor } from '@/services/export/exportImage';
 
 /**
  * 실제 상세페이지 본체.
@@ -70,7 +71,7 @@ export function DetailPage({ project, narrow = false, edit }: Props) {
         <div key={menu.id}>
           <div
             className="detail__menu"
-            style={{ marginBottom: i === visible.length - 1 ? 0 : d.menuGap }}
+            style={{ marginBottom: i === visible.length - 1 || !edit ? 0 : d.menuGap }}
             onClick={edit ? () => edit.onJump('menus', menu.id) : undefined}
             data-menu-id={menu.id}
             draggable={!!edit}
@@ -103,6 +104,16 @@ export function DetailPage({ project, narrow = false, edit }: Props) {
             )}
           </div>
           {edit && <AddHere onAdd={() => edit.onAddAt(i + 1)} />}
+          {/* 저장 이미지에서만 — 영역 사이 가운데에 눈에 안 보이는 경계선을 둔다.
+              그림을 자를 때 이 선을 찾아 **영역 단위로** 자르고, 저장 직전에 배경색으로 덮는다. */}
+          {!edit && i < visible.length - 1 && (
+            <div style={{ height: d.menuGap, position: 'relative' }} aria-hidden>
+              <i style={{
+                position: 'absolute', left: 0, right: 0, top: Math.floor(d.menuGap / 2),
+                height: 1, background: cutMarkColor(d.background),
+              }} />
+            </div>
+          )}
         </div>
       ))}
 
