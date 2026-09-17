@@ -11,7 +11,7 @@ import type { PreviewEdit } from '@/components/preview/editApi';
 import { AddMenuHere } from '@/components/menus/AddMenuHere';
 import { KEY_MENU_KINDS, makeMenu, uid } from '@/types/defaults';
 import { readPhotoFiles } from '@/utils/image';
-import { removePhoto, setMainPhoto } from '@/utils/photoOps';
+import { removePhoto, setMainPhoto, setPrice } from '@/utils/photoOps';
 
 /**
  * 한 화면에서 전부 한다.
@@ -71,7 +71,11 @@ export default function App() {
   const edit: PreviewEdit = useMemo(
     () => ({
       onProduct: (key, value) =>
-        update((d) => { d.product[key] = value; }, { label: 'product.' + key }),
+        update((d) => {
+          if (key === 'listPrice') setPrice(d, 'list', value);
+          else if (key === 'salePrice') setPrice(d, 'sale', value);
+          else d.product[key] = value;
+        }, { label: 'product.' + key }),
 
       onMenuText: (id, key, value) =>
         update((d) => {

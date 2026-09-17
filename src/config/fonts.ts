@@ -8,7 +8,9 @@
  *  - 글꼴을 못 받아와도 화면이 깨지지 않게 대체 글꼴을 함께 적어둔다.
  */
 
-export type FontKey = 'pretendard' | 'notoSansKR' | 'spoqa' | 'gmarket' | 'nanumGothic';
+export type FontKey =
+  | 'pretendard' | 'notoSansKR' | 'spoqa' | 'gmarket' | 'nanumGothic'
+  | 'nanumMyeongjo' | 'gowunBatang';
 
 export interface FontDef {
   key: FontKey;
@@ -76,7 +78,35 @@ export const FONTS: Record<FontKey, FontDef> = {
     href: 'https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&display=swap',
     license: 'SIL Open Font License 1.1',
   },
+  nanumMyeongjo: {
+    key: 'nanumMyeongjo',
+    name: '나눔명조',
+    feel: '단정하고 품위 있는',
+    stack: `'Nanum Myeongjo','Batang','바탕',serif`,
+    href: 'https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap',
+    license: 'SIL Open Font License 1.1',
+  },
+  gowunBatang: {
+    key: 'gowunBatang',
+    name: '고운바탕',
+    feel: '부드럽고 감성적인',
+    stack: `'Gowun Batang','Batang','바탕',serif`,
+    href: 'https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap',
+    license: 'SIL Open Font License 1.1',
+  },
 };
+
+/**
+ * 처음 고르는 글씨체 — 다섯 개만, 이름도 쉬운 말로.
+ * 나머지 글꼴은 '글씨체 세부 설정'에서만 보인다.
+ */
+export const FONT_CHOICES: { key: FontKey; label: string }[] = [
+  { key: 'pretendard', label: '기본 고딕' },
+  { key: 'spoqa', label: '부드러운 고딕' },
+  { key: 'notoSansKR', label: '세련된 고딕' },
+  { key: 'nanumMyeongjo', label: '명조' },
+  { key: 'gowunBatang', label: '감성 명조' },
+];
 
 export const FONT_KEYS = Object.keys(FONTS) as FontKey[];
 

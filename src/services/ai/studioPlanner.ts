@@ -168,6 +168,19 @@ const RECIPES: Recipe[] = [
   },
 ];
 
+/** 사진관이 아닌 일반 상품 (완성 예시 '일반 상품 상세페이지' 에서 시작했을 때 등) */
+const GENERAL: Recipe = {
+  match: ['일반상품', '제품'],
+  menus: ['main', 'benefit', 'event', 'price', 'intro', 'gallery', 'recommend', 'howto', 'caution', 'faq', 'cta'],
+  audience: '이 상품을 찾고 계신 분',
+  benefits: ['꼭 필요한 기능에 집중한 구성', '오래 써도 편안한 사용감', '받아보는 날부터 바로 쓸 수 있는 준비'],
+  concepts: [],
+  process: ['주문', '준비', '발송', '받아보기'],
+  prepare: [],
+  faq: ['주문 후 언제 받을 수 있나요?', '교환·반품은 어떻게 하나요?', '사용 방법이 궁금해요'],
+  mood: '깔끔하고 믿음직한',
+};
+
 /** 사용자가 직접 만든 촬영상품처럼 아는 낱말이 없을 때 */
 const FALLBACK: Recipe = {
   match: [],
@@ -183,8 +196,35 @@ const FALLBACK: Recipe = {
 
 export function recipeFor(productName: string): Recipe {
   const name = (productName || '').replace(/\s/g, '');
+  if (GENERAL.match.some((m) => name.includes(m))) return GENERAL;
   const found = RECIPES.find((r) => r.match.some((m) => name.includes(m)));
   return found ?? FALLBACK;
+}
+
+/**
+ * 영역 기본 순서.
+ * 대표 이미지 → (한 줄 소개) → 주요 장점 → 상품 구성·가격 → 상세 설명 → 실제 사례
+ * → 추천 대상 → 이용 방법 → 예약·문의(마무리)
+ */
+const PAGE_ORDER: MenuKind[] = [
+  'main', 'benefit', 'event', 'perks', 'price', 'compare', 'intro',
+  'shootConcept', 'gallery', 'review', 'recommend',
+  'process', 'howto', 'prepare', 'caution', 'faq', 'brand', 'cta',
+];
+
+function inPageOrder(kinds: MenuKind[]): MenuKind[] {
+  const rank = (k: MenuKind) => {
+    const i = PAGE_ORDER.indexOf(k);
+    return i < 0 ? PAGE_ORDER.length : i;
+  };
+  return [...kinds].sort((a, b) => rank(a) - rank(b));
+}
+
+/** 적어주신 글을 줄 목록으로 (쉼표로 이어 적은 것도 나눈다) */
+function listOf(text: string): string[] {
+  const byLine = text.split('\n').map((s) => s.trim()).filter(Boolean);
+  if (byLine.length > 1) return byLine;
+  return text.split(/[,·]/).map((s) => s.trim()).filter(Boolean);
 }
 
 /* ------------------------------------------------------------------ */
@@ -201,13 +241,22 @@ export function planStudioPage(project: ProjectData): StudioPlan {
   const wish = `${brief?.wish ?? ''} ${brief?.mood ?? ''} ${brief?.emphasis ?? ''}`.trim();
   const mood = brief?.mood?.trim() || moodFromWish(wish) || recipe.mood;
 
-  /* ---- 사진 고르기 (새로 만들지 않는다. 있는 것 중에서 고른다) ---- */
-  const photos = project.photos;
+  /* ---- 사진 고르기 (새로 만들지 않는다. 있는 것 중에서 고른다) ----
+     '사용하지 않음' 과 '제외 추천' 이 붙은 사진은 배치하지 않는다 (보관함에는 그대로 남는다) */
+  const photos = project.photos.filter((p) => p.kind !== 'unused' && !p.exclude);
   const mainPhoto = pickMainPhoto(photos);
   const spread = spreadPhotos(photos, mainPhoto?.id);
 
   /* ---- 사용자의 요청을 구성에 반영 ---- */
   let kinds = [...recipe.menus];
+  const prod = project.product;
+  const want = (k: MenuKind, has: boolean) => { if (has && !kinds.includes(k)) kinds.push(k); };
+  want('intro', !!prod.description.trim());
+  want('benefit', !!prod.benefits.trim());
+  want('recommend', !!prod.target.trim());
+  want('howto', !!prod.howToUse.trim());
+  want('caution', !!prod.caution.trim());
+  kinds = inPageOrder(kinds);
   if (/가격|혜택|할인|이벤트/.test(wish)) kinds = moveEarlier(kinds, ['event', 'perks', 'price']);
   if (/사진.*(많|위주)|갤러리/.test(wish)) kinds = moveEarlier(kinds, ['gallery']);
   if (photos.length === 0) kinds = kinds.filter((k) => k !== 'gallery');
@@ -345,16 +394,22 @@ function buildMenu(kind: MenuKind, c: Ctx): PlannedMenu {
       };
     }
 
-    case 'benefit':
+    case 'benefit': {
+      /* 적어주신 주요 특징이 있으면 그것을 쓴다. 없을 때만 일반적인 문구 */
+      const own = listOf(c.project.product.benefits);
+      const items = own.length ? own : c.recipe.benefits;
+      const general = c.recipe === GENERAL;
       return {
         ...base,
-        title: c.shopName ? `${c.shopName}의 장점` : '우리 사진관의 장점',
-        body: c.recipe.benefits.join('\n'),
-        template: c.recipe.benefits.length >= 4 ? 'B' : 'A',
+        title: general ? '이 상품의 장점' : c.shopName ? `${c.shopName}의 장점` : '우리 사진관의 장점',
+        body: items.join('\n'),
+        template: items.length >= 4 ? 'B' : 'A',
       };
+    }
 
     case 'recommend': {
-      const lines = recommendLines(c.product, c.recipe, c.emphasis);
+      const own = listOf(c.project.product.target);
+      const lines = own.length ? own : recommendLines(c.product, c.recipe, c.emphasis);
       return {
         ...base,
         title: '이런 분께 추천합니다',
@@ -376,7 +431,7 @@ function buildMenu(kind: MenuKind, c: Ctx): PlannedMenu {
     case 'process':
       return {
         ...base,
-        title: '촬영 과정',
+        title: c.recipe === GENERAL ? '구매 과정' : '촬영 과정',
         body: '',
         lines: c.recipe.process,
         template: c.recipe.process.length >= 5 ? 'A' : 'B',
@@ -402,7 +457,7 @@ function buildMenu(kind: MenuKind, c: Ctx): PlannedMenu {
 
     case 'howto': {
       const text = c.project.product.howToUse.trim();
-      return { ...base, title: '의상·헤어·메이크업', body: text, hidden: !text };
+      return { ...base, title: '이용 안내', body: text, hidden: !text };
     }
 
     case 'caution': {
@@ -488,8 +543,21 @@ function bookingText(c: Ctx): string {
   if (s?.hours) lines.push(`영업시간 ${s.hours}`);
   if (s?.offDays) lines.push(`휴무 ${s.offDays}`);
   if (s?.address) lines.push(s.address);
-  /* 없는 정보를 지어내지 않는다 */
-  return lines.length ? lines.join('\n') : '예약 방법과 문의처를 적어주세요.';
+  /* 적어두신 예약·구매 안내가 있으면 함께 */
+  const own = c.project.product.contact.trim();
+  if (own && !lines.some((l) => own.includes(l.replace(/^전화 /, '')))) lines.push(own);
+  /*
+   * 없는 정보를 지어내지 않는다.
+   * 예전에는 비어 있으면 "예약 방법과 문의처를 적어주세요." 를 넣었는데
+   * 그 안내 문장이 **저장 이미지에 그대로 찍혔다.** 이제는 비워둔다.
+   */
+  if (!lines.length) return '';
+  /* 마무리 한 줄 — 적어주신 정보(상호·상품)로만 만든다 */
+  const who = c.shopName ? `${c.shopName}에서 ` : '';
+  const closing = c.recipe === GENERAL
+    ? '궁금한 점은 편하게 문의해주세요.'
+    : `${who}편안하게 남겨보세요. 궁금한 점은 편하게 문의해주세요.`;
+  return [closing, '', ...lines].join('\n');
 }
 
 function recommendLines(product: string, recipe: Recipe, emphasis: string): string[] {
@@ -611,8 +679,12 @@ export function spreadPhotos(photos: Photo[], mainId?: string): Map<MenuKind, st
   if (spare > 1) out.set('perks', take(1));
   if (spare > 2) out.set('benefit', take(1));
 
-  /* 남은 사진은 전부 갤러리로 — 버리지 않는다 */
-  const left = queue.map((p) => p.id);
+  /*
+   * 남은 사진은 갤러리로. 다만 **최대 8장**까지만 싣는다.
+   * 50장을 가져왔다고 50장을 다 올리면 상세페이지가 끝없이 길어진다.
+   * 싣지 않은 사진도 보관함에는 그대로 남아 언제든 넣을 수 있다.
+   */
+  const left = queue.map((p) => p.id).slice(0, 8);
   if (left.length) out.set('gallery', left);
 
   return out;

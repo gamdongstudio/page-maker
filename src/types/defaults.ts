@@ -96,10 +96,13 @@ export const DESIGN_PRESETS: Record<StylePreset, DesignSettings> = {
     titleSize: 34, bodySize: 17, menuGap: 64, padding: 40, photoRadius: 12,
     buttonStyle: 'round', align: 'center', titleFont: 'pretendard', bodyFont: 'pretendard', heroShape: 'auto',
   },
+  /* 고급스러운 — 기본 스타일.
+     깔끔한 여백 · 과하지 않은 강조 · 사진이 크게 · 읽기 쉬운 고딕 · 신뢰감 있는 차분한 색 */
   luxury: {
-    preset: 'luxury', background: '#f7f5f2', primary: '#8b7355', accent: '#2b2620', text: '#2b2620',
-    titleSize: 36, bodySize: 17, menuGap: 80, padding: 52, photoRadius: 0,
-    buttonStyle: 'square', align: 'center', titleFont: 'notoSansKR', bodyFont: 'notoSansKR', heroShape: 'auto',
+    preset: 'luxury', background: '#faf8f5', primary: '#8a6d4b', accent: '#231f1b', text: '#3b352e',
+    titleSize: 34, bodySize: 17, menuGap: 96, padding: 48, photoRadius: 4,
+    buttonStyle: 'square', align: 'center', titleFont: 'notoSansKR', bodyFont: 'pretendard', heroShape: 'auto',
+    divider: 'line',
   },
   emotional: {
     preset: 'emotional', background: '#fbf8f6', primary: '#c9807a', accent: '#6b4f4a', text: '#4a3f3c',
@@ -113,8 +116,9 @@ export const DESIGN_PRESETS: Record<StylePreset, DesignSettings> = {
   },
   minimal: {
     preset: 'minimal', background: '#ffffff', primary: '#111111', accent: '#111111', text: '#333333',
-    titleSize: 28, bodySize: 16, menuGap: 88, padding: 32, photoRadius: 0,
-    buttonStyle: 'square', align: 'left', titleFont: 'pretendard', bodyFont: 'pretendard', heroShape: 'auto',
+    titleSize: 30, bodySize: 16, menuGap: 88, padding: 36, photoRadius: 0,
+    buttonStyle: 'square', align: 'left', titleFont: 'notoSansKR', bodyFont: 'pretendard', heroShape: 'auto',
+    divider: 'line',
   },
   bright: {
     preset: 'bright', background: '#ffffff', primary: '#00b8a9', accent: '#0a7c73', text: '#22333b',
@@ -194,6 +198,7 @@ export function createProject(_opts?: { sample?: boolean }): ProjectData {
     photos: [],
     videos: [],
     menus: DEFAULT_MENU_KINDS.map((k) => makeMenu(k)),
-    design: { ...DESIGN_PRESETS.clean },
+    /* 처음부터 고급스러운 스타일로 시작한다 */
+    design: { ...DESIGN_PRESETS.luxury },
   };
 }

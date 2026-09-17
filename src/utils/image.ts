@@ -1,5 +1,5 @@
 import { IMAGE_POLICY } from '@/config/smartstore';
-import type { HeroShape, Photo, PhotoFit } from '@/types/project';
+import type { HeroShape, Photo, PhotoFit, PhotoSource } from '@/types/project';
 import { uid } from '@/types/defaults';
 
 /**
@@ -112,11 +112,12 @@ export function photoWarning(photo: Photo): string | null {
 /* 파일 읽기                                                            */
 /* ------------------------------------------------------------------ */
 
-export function readPhotoFiles(files: FileList | File[]): Promise<Photo[]> {
+export function readPhotoFiles(files: FileList | File[], source: PhotoSource = 'upload'): Promise<Photo[]> {
   const list = Array.from(files).filter((f) => /^image\//.test(f.type));
   if (!list.length) return Promise.resolve([]);
 
-  return Promise.all(list.map(readOne)).then((all) => all.filter(Boolean) as Photo[]);
+  return Promise.all(list.map(readOne))
+    .then((all) => (all.filter(Boolean) as Photo[]).map((p) => ({ ...p, source })));
 }
 
 function readOne(file: File): Promise<Photo | null> {

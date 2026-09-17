@@ -93,6 +93,17 @@ export const HERO_SHAPE_LABEL: Record<HeroShape, string> = {
   portrait: '세로형',
 };
 
+/** 사진이 어디서 왔는지 — 카드 구석에 작게만 보여준다 */
+export type PhotoSource = 'upload' | 'blog' | 'place' | 'home' | 'store';
+
+export const PHOTO_SOURCE_LABEL: Record<PhotoSource, string> = {
+  upload: '직접 추가',
+  blog: '블로그',
+  place: '스마트플레이스',
+  home: '홈페이지',
+  store: '스마트스토어',
+};
+
 export interface Photo {
   id: string;
   name: string;          // 파일 이름
@@ -115,6 +126,15 @@ export interface Photo {
     fromHeight: number;
     fromBytes: number;
   };
+  /** 어디서 왔는지 (없으면 직접 추가) */
+  source?: PhotoSource;
+  /**
+   * 빼는 게 좋아 보이는 이유 (너무 작음 · 같은 사진 · 띠 모양 배너 …).
+   * **추천일 뿐이다.** 자동으로 지우지 않는다. 사용자가 고른다.
+   */
+  exclude?: string;
+  /** 같은 사진인지 견주는 짧은 지문 */
+  hash?: string;
 }
 
 /** 동영상 URL */
@@ -192,13 +212,18 @@ export interface PricePackage {
 export type StylePreset =
   | 'clean' | 'luxury' | 'emotional' | 'warm' | 'minimal' | 'bright';
 
+/**
+ * 스타일 이름.
+ * 저장되는 값(키)은 예전과 같다 — 옛 작업파일도 그대로 열린다. 보이는 이름만 바꿨다.
+ * 보여주는 순서도 이 순서다 (고급스러운이 기본).
+ */
 export const STYLE_PRESET_LABEL: Record<StylePreset, string> = {
-  clean: '깔끔한',
   luxury: '고급스러운',
-  emotional: '감성적인',
+  clean: '깔끔한',
   warm: '따뜻한',
-  minimal: '미니멀',
-  bright: '밝은',
+  emotional: '감성적인',
+  minimal: '모던한',
+  bright: '밝고 경쾌한',
 };
 
 /**
@@ -237,6 +262,10 @@ export interface DesignSettings {
   fontLocked?: boolean;
   /** 대문 사진 모양 */
   heroShape: HeroShape;
+  /** 영역 사이 구분선 (없으면 없음) */
+  divider?: 'none' | 'line';
+  /** 사용자가 스타일을 직접 골랐는지 — 골랐다면 자동 추천이 스타일을 바꾸지 않는다 */
+  styleChosen?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -300,6 +329,26 @@ export interface ProjectData {
    *   비어 있으면 상세페이지 내용에서 그때그때 만들어 쓴다.
    */
   place?: Record<string, string>;
+  /** ① 자료 준비에서 넣은 주소들 (없을 수 있음) */
+  sources?: SourceLink[];
+  /** 만드는 흐름 기록 — 자동 추천을 언제 했는지 등 (없을 수 있음) */
+  flow?: FlowState;
+}
+
+/** ① 에서 넣은 주소 하나 */
+export interface SourceLink {
+  id: string;
+  url: string;
+  /** 마지막으로 가져온 결과 */
+  state?: 'ok' | 'fail';
+  at?: number;
+}
+
+export interface FlowState {
+  /** 자동 추천을 마지막으로 만든 때 */
+  recommendedAt?: number;
+  /** 마지막으로 이미지를 저장한 때 */
+  savedAt?: number;
 }
 
 /** 무엇을 만들지에 대한 짧은 설명 — 전부 선택 입력이다 */
