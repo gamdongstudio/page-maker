@@ -9,6 +9,7 @@ import { FIT_HINT, photoWarning, readPhotoFiles, recommendHeroShape, shapeOf, su
 import { HERO_SHAPE_LABEL, type HeroShape } from '@/types/project';
 import { useEdition } from '@/store/EditionContext';
 import { Icon } from '@/components/ui/Icon';
+import { removePhoto, setMainPhoto } from '@/utils/photoOps';
 
 /** ② 사진·미디어 */
 export function StepMedia() {
@@ -41,17 +42,10 @@ export function StepMedia() {
     }, { label });
 
   const remove = (id: string) =>
-    update((d) => {
-      d.photos = d.photos.filter((p) => p.id !== id);
-      d.menus.forEach((m) => { m.photoIds = m.photoIds.filter((pid) => pid !== id); });
-    }, { label: 'photos.remove', merge: false });
+    update((d) => { removePhoto(d, id); }, { label: 'photos.remove', merge: false });
 
   const setMain = (id: string) =>
-    update((d) => {
-      d.photos.forEach((p) => { if (p.kind === 'main') p.kind = 'product'; });
-      const p = d.photos.find((x) => x.id === id);
-      if (p) p.kind = 'main';
-    }, { label: 'photos.main', merge: false });
+    update((d) => { setMainPhoto(d, id); }, { label: 'photos.main', merge: false });
 
   const reorder = (fromId: string, toId: string) => {
     if (fromId === toId) return;

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useProject } from '@/store/ProjectStore';
 import { LITE_MENU_KINDS, MENU_CATALOG, makeMenu, uid } from '@/types/defaults';
 import { useEdition } from '@/store/EditionContext';
@@ -8,12 +8,26 @@ import { Icon } from '@/components/ui/Icon';
 import { templateLabel } from '@/components/preview/templates';
 
 /** ③ 메뉴 구성 — 화면에서 '블록' 이라는 말은 쓰지 않는다 */
-export function StepMenus({ focusMenuId }: { focusMenuId?: string | null }) {
+export function StepMenus({ focusMenuId, onFocused }: { focusMenuId?: string | null; onFocused?: () => void }) {
   const { project, update } = useProject();
   const { isPro } = useEdition();
   const [adding, setAdding] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const dragId = useRef<string | null>(null);
+
+  /*
+   * 미리보기에서 섹션을 누르면 그 카드를 연다.
+   * 여는 것까지만 하고 표시는 바로 비운다 — 그래야 [닫기]가 늘 먹히고,
+   * 같은 섹션을 다시 눌러도 또 열린다. (예전에는 닫기를 눌러도 안 닫혔다)
+   */
+  useEffect(() => {
+    if (!focusMenuId) return;
+    setEditId(focusMenuId);
+    onFocused?.();
+    window.setTimeout(() => {
+      document.querySelector(`[data-card-id="${focusMenuId}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 60);
+  }, [focusMenuId, onFocused]);
 
   const add = (kind: MenuKind) => {
     update((d) => { d.menus.push(makeMenu(kind)); }, { label: 'menu.add', merge: false });
@@ -30,7 +44,10 @@ export function StepMenus({ focusMenuId }: { focusMenuId?: string | null }) {
     update((d) => {
       const i = d.menus.findIndex((m) => m.id === id);
       if (i < 0) return;
-      const copy = { ...d.menus[i], id: uid('menu'), title: d.menus[i].title + ' 복사', photoIds: [...d.menus[i].photoIds] };
+      const copy = {
+        ...d.menus[i], id: uid('menu'), title: d.menus[i].title + ' 복사',
+        photoIds: [...d.menus[i].photoIds], lines: [...d.menus[i].lines],
+      };
       d.menus.splice(i + 1, 0, copy);
     }, { label: 'menu.dup', merge: false });
 
@@ -79,11 +96,12 @@ export function StepMenus({ focusMenuId }: { focusMenuId?: string | null }) {
 
       <div className="menus">
         {project.menus.map((m, i) => {
-          const open = editId === m.id || focusMenuId === m.id;
+          const open = editId === m.id;
           return (
             <div
               key={m.id}
               className={'menu' + (m.hidden ? ' is-hidden' : '') + (open ? ' is-open' : '')}
+              data-card-id={m.id}
               draggable
               onDragStart={() => { dragId.current = m.id; }}
               onDragOver={(e) => e.preventDefault()}

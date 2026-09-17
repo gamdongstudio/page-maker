@@ -1,9 +1,11 @@
+import { useContext } from 'react';
 import type { MenuItem, Photo, ProjectData } from '@/types/project';
 import { photoStyle } from '@/utils/image';
 import { photosOf } from '@/utils/menuPhotos';
 import { formatWon, pickReadable, shade } from '@/utils/format';
 import { Editable } from './Editable';
 import type { PreviewEdit } from './editApi';
+import { EditingContext } from './editing';
 
 /**
  * 사진관 섹션들의 여러 가지 모양(템플릿).
@@ -39,7 +41,10 @@ function Img({ photo, width, radius }: { photo: Photo; width: number; radius: nu
   );
 }
 
+/** 비어 있는 칸 안내 — 고치는 중일 때만 보인다. 저장 이미지에는 들어가지 않는다 */
 function Empty({ text }: { text: string }) {
+  const editing = useContext(EditingContext);
+  if (!editing) return null;
   return (
     <span style={{
       color: '#a8adb5', fontSize: 14, border: '1px dashed #d6dae0',

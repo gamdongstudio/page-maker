@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useContext, useRef, useState } from 'react';
 import { SMARTSTORE_DETAIL_WIDTH } from '@/config/smartstore';
 import { FONT_LABEL, type MenuItem, type ProjectData } from '@/types/project';
 import { heroBoxHeight, photoStyle, shapeOf } from '@/utils/image';
@@ -13,6 +13,8 @@ import { formatWon, pickReadable } from '@/utils/format';
 import { ensureFonts } from '@/services/fonts/loadFont';
 import { Editable } from './Editable';
 import type { PreviewEdit } from './editApi';
+import { EditingContext } from './editing';
+import { hasContent } from './sectionContent';
 
 /**
  * 실제 상세페이지 본체.
@@ -51,11 +53,16 @@ export function DetailPage({ project, narrow = false, edit }: Props) {
     boxSizing: 'border-box',
   };
 
-  const visible = project.menus.filter((m) => !m.hidden);
+  /*
+   * 저장 이미지(edit 없음)에서는 **내용이 없는 영역을 뺀다.**
+   * 미리보기에서는 채울 수 있게 그대로 보여주고, 빠진다는 것을 작게 알린다.
+   */
+  const visible = project.menus.filter((m) => !m.hidden && (!!edit || hasContent(m, project)));
   const sidePad = narrow ? Math.min(d.padding, 20) : d.padding;
   const contentWidth = width - sidePad * 2;
 
   return (
+    <EditingContext.Provider value={!!edit}>
     <div className={'detail' + (edit ? ' detail--edit' : '')} style={rootStyle} data-detail-root>
       {edit && visible.length > 0 && <AddHere onAdd={() => edit.onAddAt(0)} />}
 
@@ -84,6 +91,9 @@ export function DetailPage({ project, narrow = false, edit }: Props) {
                 edit={edit}
               />
             )}
+            {edit && !hasContent(menu, project) && (
+              <span className="emptytag">비어 있어 저장할 때는 빠집니다</span>
+            )}
             <MenuBody
               menu={menu} project={project} narrow={narrow}
               boxWidth={contentWidth} edit={edit}
@@ -96,12 +106,13 @@ export function DetailPage({ project, narrow = false, edit }: Props) {
         </div>
       ))}
 
-      {visible.length === 0 && (
+      {visible.length === 0 && edit && (
         <p style={{ color: '#9aa0a6', padding: '60px 0' }}>
-          오른쪽에서 메뉴를 추가하면 여기에 상세페이지가 만들어집니다.
+          오른쪽에서 영역을 추가하면 여기에 상세페이지가 만들어집니다.
         </p>
       )}
     </div>
+    </EditingContext.Provider>
   );
 }
 
@@ -574,6 +585,8 @@ function PriceRow({ project, big = false, edit }: {
 }
 
 function Placeholder({ text, inline = false }: { text: string; inline?: boolean }) {
+  const editing = useContext(EditingContext);
+  if (!editing) return null;
   const style: React.CSSProperties = {
     color: '#a8adb5',
     fontSize: 14,

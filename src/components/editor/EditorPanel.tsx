@@ -30,6 +30,7 @@ interface Props {
   openStep: StepKey | null;
   setOpenStep: (s: StepKey | null) => void;
   focusMenuId?: string | null;
+  onFocused?: () => void;
   jumpTo?: StepKey | null;
   onJumped?: () => void;
   getStage: () => HTMLElement | null;
@@ -68,7 +69,7 @@ const TITLE: Record<StepKey, string> = {
   check: '완성·저장',
 };
 
-export function EditorPanel({ openStep, setOpenStep, focusMenuId, jumpTo, onJumped, getStage }: Props) {
+export function EditorPanel({ openStep, setOpenStep, focusMenuId, onFocused, jumpTo, onJumped, getStage }: Props) {
   const { isPro } = useEdition();
   const { project } = useProject();
   const boxRef = useRef<HTMLDivElement>(null);
@@ -153,7 +154,7 @@ export function EditorPanel({ openStep, setOpenStep, focusMenuId, jumpTo, onJump
         )}
         {now === 'product' && <Panel title={TITLE.product} icon="fileText"><StepProduct /></Panel>}
         {now === 'media' && <Panel title={TITLE.media} icon="image"><StepMedia /></Panel>}
-        {now === 'menus' && <Panel title={TITLE.menus} icon="grid"><StepMenus focusMenuId={focusMenuId} /></Panel>}
+        {now === 'menus' && <Panel title={TITLE.menus} icon="grid"><StepMenus focusMenuId={focusMenuId} onFocused={onFocused} /></Panel>}
         {now === 'design' && <Panel title={TITLE.design} icon="palette"><StepDesign /></Panel>}
         {now === 'prompter' && (
           <Panel title={TITLE.prompter} icon="message">

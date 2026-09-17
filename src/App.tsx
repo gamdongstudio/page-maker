@@ -11,6 +11,7 @@ import type { PreviewEdit } from '@/components/preview/editApi';
 import { AddMenuHere } from '@/components/menus/AddMenuHere';
 import { KEY_MENU_KINDS, makeMenu, uid } from '@/types/defaults';
 import { readPhotoFiles } from '@/utils/image';
+import { removePhoto, setMainPhoto } from '@/utils/photoOps';
 
 /**
  * 한 화면에서 전부 한다.
@@ -44,6 +45,8 @@ export default function App() {
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);
   }, []);
+
+  const clearFocus = useCallback(() => setFocusMenuId(null), []);
 
   const say = useCallback((m: string) => {
     setToast(m);
@@ -160,9 +163,15 @@ export default function App() {
                 return;
               }
             }
-            if (d.photos.length === 0) added[0].kind = 'main';
+            const hadMain = d.photos.some((p) => p.kind === 'main');
             d.photos.push(...added);
             const m = d.menus.find((x) => x.id === menuId);
+            if (m?.kind === 'main') {
+              /* 맨 위 칸에 넣으면 첫 장이 대표사진이 된다. 나머지는 보관함에만 들어간다 */
+              setMainPhoto(d, added[0].id);
+              return;
+            }
+            if (!hadMain) added[0].kind = 'main';
             if (m) m.photoIds = [...m.photoIds, ...added.map((a) => a.id)];
           }, { label: 'photos.preview', merge: false });
           say(photoId ? '사진을 바꿨습니다.' : `사진 ${added.length}장을 넣었습니다.`);
@@ -171,20 +180,13 @@ export default function App() {
 
       onPhoto: (action, menuId, photoId) => {
         if (action === 'main') {
-          update((d) => {
-            d.photos.forEach((p) => { if (p.kind === 'main') p.kind = 'product'; });
-            const p = d.photos.find((x) => x.id === photoId);
-            if (p) p.kind = 'main';
-          }, { label: 'photos.main', merge: false });
+          update((d) => { setMainPhoto(d, photoId); }, { label: 'photos.main', merge: false });
           say('대표사진으로 정했습니다.');
           return;
         }
         if (action === 'remove') {
           if (!confirm('이 사진을 상세페이지에서 지울까요?')) return;
-          update((d) => {
-            d.photos = d.photos.filter((p) => p.id !== photoId);
-            d.menus.forEach((m) => { m.photoIds = m.photoIds.filter((id) => id !== photoId); });
-          }, { label: 'photos.remove', merge: false });
+          update((d) => { removePhoto(d, photoId); }, { label: 'photos.remove', merge: false });
           say('사진을 지웠습니다. 되돌리려면 실행취소를 눌러주세요.');
           return;
         }
@@ -310,6 +312,7 @@ export default function App() {
             openStep={openStep}
             setOpenStep={setOpenStep}
             focusMenuId={focusMenuId}
+            onFocused={clearFocus}
             jumpTo={jumpTo}
             onJumped={() => setJumpTo(null)}
             getStage={() => stageRef.current}
