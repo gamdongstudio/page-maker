@@ -370,13 +370,17 @@ function buildMenu(kind: MenuKind, c: Ctx): PlannedMenu {
     }
 
     case 'price': {
-      const has = !!(pr?.listPrice || pr?.eventPrice || pr?.includes);
+      const prod = c.project.product;
+      const listP = pr?.listPrice || prod.listPrice;
+      const saleP = pr?.eventPrice || prod.salePrice;
+      /* 미리보기가 상품정보의 가격도 보여주므로, 숨길지 판단할 때도 같이 본다 */
+      const has = !!(listP || saleP || pr?.includes);
       const includeCount = (pr?.includes ?? '').split('\n').filter((x) => x.trim()).length;
       return {
         ...base,
         title: '가격 안내',
         body: '',
-        template: pickPriceTemplate(pr?.listPrice, pr?.eventPrice, includeCount),
+        template: pickPriceTemplate(listP, saleP, includeCount),
         hidden: !has,
       };
     }
@@ -561,9 +565,9 @@ function bookingText(c: Ctx): string {
 }
 
 function recommendLines(product: string, recipe: Recipe, emphasis: string): string[] {
-  const p = product || '촬영';
+  const p = product && product !== '촬영' ? product : '';
   const out = [
-    `${josaEul(p)} 처음 찍어보시는 분`,
+    p ? `${josaEul(p)} 처음 찍어보시는 분` : '사진 촬영이 처음이신 분',
     recipe.audience,
     '어떤 느낌이 좋을지 아직 못 정하신 분',
   ];
@@ -581,14 +585,17 @@ function recommendLines(product: string, recipe: Recipe, emphasis: string): stri
 export function searchTitles(
   product: string, area: string, shop: string, recipe?: Recipe, emphasis = '',
 ): string[] {
-  const p = product || '사진 촬영';
+  /* 상품 종류를 고르지 않았으면 '촬영' 이 넘어온다 — '촬영 촬영' 이 되지 않게 */
+  const p = product && product !== '촬영' ? product : '사진';
+  const shot = /촬영$/.test(p) ? p : `${p} 촬영`;
   const a = area ? `${area} ` : '';
   const want = emphasis.trim();
+  const concept = recipe?.concepts[0] && recipe.concepts[0] !== '기본' ? recipe.concepts[0] : '';
   const out = [
-    `${a}${p} 촬영`,
+    `${a}${shot}`,
     want ? `${a}${want} ${p}` : `${a}${p} 예약 안내`,
     shop ? `${a}${shop} ${p}` : `${a}${p} 가격 안내`,
-    recipe?.concepts[0] ? `${a}${recipe.concepts[0]} ${p}` : `${a}${p} 스튜디오`,
+    concept ? `${a}${concept} ${p}` : `${a}${p} 스튜디오`,
   ];
   /* 같은 낱말을 억지로 반복하지 않는다 */
   return [...new Set(out.map((t) => stripBanned(t.trim())))].filter(Boolean);
@@ -597,7 +604,7 @@ export function searchTitles(
 /** 대문 카피 — 고객 설득 중심 (검색 제목과 역할이 다르다) */
 export function heroCopy(product: string, mood: string, area = '', emphasis = ''): string[] {
   /* '가족사진' → '가족' 처럼 끝의 '사진'을 떼어 말이 자연스럽게 만든다 */
-  const subject = (product || '오늘').replace(/사진$/, '') || '오늘';
+  const subject = (product && product !== '촬영' ? product : '순간').replace(/사진$/, '') || '순간';
   const want = emphasis.trim();
   const out = [
     `오늘의 ${josaEul(subject)} 오래 기억하는 방법`,

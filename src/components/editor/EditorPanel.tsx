@@ -7,6 +7,7 @@ import { StepRecommend } from '@/components/recommend/StepRecommend';
 import { StepEdit } from '@/components/edit/StepEdit';
 import { StepSave } from '@/components/save/StepSave';
 import { useEdition } from '@/store/EditionContext';
+import { scrollToTop } from '@/utils/scrollBox';
 
 /**
  * 오른쪽 제작도구.
@@ -39,9 +40,9 @@ export function EditorPanel({
   const { isPro } = useEdition();
   const boxRef = useRef<HTMLDivElement>(null);
 
-  /* 단계를 옮기면 맨 위부터 보이게 */
+  /* 단계를 옮기면 맨 위부터 보이게 — 실제로 스크롤되는 바깥 칸을 올린다 */
   useEffect(() => {
-    boxRef.current?.scrollTo({ top: 0 });
+    scrollToTop(boxRef.current);
   }, [view]);
 
   if (view === 'works') {

@@ -45,7 +45,8 @@ export function StepRecommend({ onNext }: { onNext: () => void }) {
     const at = p.flow?.recommendedAt;
     /* 추천을 만든 뒤 한 번이라도 고쳤으면 (제목 고르기 포함) 먼저 묻는다 */
     if (at) return p.updatedAt > at;
-    return p.menus.some((m) => m.body.trim() || m.lines.some((l) => l.trim()));
+    /* 처음 만들 때는 빈 곳만 채우므로 적어두신 글이 지워질 일이 없다 — 묻지 않는다 */
+    return false;
   };
 
   const wait = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
@@ -53,12 +54,12 @@ export function StepRecommend({ onNext }: { onNext: () => void }) {
   const make = async (mode: Mode) => {
     setAsking(false);
     setMsg('');
+    /* 누르자마자 반응한다 — 보관은 그다음 */
+    setPhase(0);
     await saveSnapshot(latest.current, '자동 추천 전');
     const snaps = await listSnapshots();
     setSnapAt(snaps[0]?.at ?? null);
-
-    setPhase(0);
-    await wait(300);
+    await wait(250);
     const fresh = planStudioPage(latest.current);
 
     setPhase(1);

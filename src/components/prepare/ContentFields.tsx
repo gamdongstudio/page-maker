@@ -4,6 +4,7 @@ import { EMPTY_BRIEF, type ProductInfo } from '@/types/project';
 import { EMPTY_PRICING, EMPTY_STUDIO, type ShootProduct, type StudioInfo } from '@/types/studio';
 import { loadShootProducts, saveShootProducts } from '@/services/storage/studio';
 import { setPrice } from '@/utils/photoOps';
+import { isLinked, linkedValue, revealWhenFilled, setLinked } from './sectionText';
 import { Field } from '@/components/editor/Fields';
 import { StudioForm } from '@/components/studio/StudioForm';
 import { ShootProducts } from '@/components/studio/ShootProducts';
@@ -23,11 +24,19 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
   const [studioOpen, setStudioOpen] = useState(false);
 
   const set = (key: keyof ProductInfo, label = key) => (v: string) =>
-    update((d) => { d.product[key] = v; }, { label: 'product.' + label });
+    update((d) => {
+      if (isLinked(key)) setLinked(d, key, v);
+      else d.product[key] = v;
+    }, { label: 'product.' + label });
+
+  /* 영역과 묶인 칸은 영역에 실제로 들어 있는 글을 보여준다 */
+  const val = (key: keyof ProductInfo) => (isLinked(key) ? linkedValue(project, key) : p[key]);
 
   const setIncludes = (v: string) =>
     update((d) => {
-      d.pricing = { ...EMPTY_PRICING, ...(d.pricing ?? {}), includes: v };
+      revealWhenFilled(d, ['price'], () => {
+        d.pricing = { ...EMPTY_PRICING, ...(d.pricing ?? {}), includes: v };
+      });
     }, { label: 'pricing.includes' });
 
   const setEmphasis = (v: string) =>
@@ -54,12 +63,12 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
       <div className="row2">
         <Field
           label="정상가 (선택)" value={p.listPrice}
-          onChange={(v) => update((d) => { setPrice(d, 'list', v); }, { label: 'price.list' })}
+          onChange={(v) => update((d) => { revealWhenFilled(d, ['price'], () => setPrice(d, 'list', v)); }, { label: 'price.list' })}
           placeholder="예) 250000" hint="숫자만 적어주세요"
         />
         <Field
           label="판매가" value={p.salePrice}
-          onChange={(v) => update((d) => { setPrice(d, 'sale', v); }, { label: 'price.sale' })}
+          onChange={(v) => update((d) => { revealWhenFilled(d, ['price'], () => setPrice(d, 'sale', v)); }, { label: 'price.sale' })}
           placeholder="예) 189000"
         />
       </div>
@@ -69,23 +78,23 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
         placeholder={'한 줄에 하나씩\n예) 원본 전체 제공\n보정본 2장\n11x14 액자'}
       />
       <Field
-        label="상품 설명" value={p.description} onChange={set('description')} multiline rows={3}
+        label="상품 설명" value={val('description')} onChange={set('description')} multiline rows={3}
         placeholder="상품을 자세히 소개해주세요"
       />
       <Field
-        label="주요 특징" value={p.benefits} onChange={set('benefits')} multiline rows={3}
+        label="주요 특징" value={val('benefits')} onChange={set('benefits')} multiline rows={3}
         placeholder={'한 줄에 하나씩\n예) 아이 속도에 맞춘 촬영\n오래 걸어둘 수 있는 액자'}
       />
       <Field
-        label="추천 대상" value={p.target} onChange={set('target')} multiline rows={2}
+        label="추천 대상" value={val('target')} onChange={set('target')} multiline rows={2}
         placeholder="예) 가족의 소중한 순간을 남기고 싶은 분"
       />
       <Field
-        label="이용 방법" value={p.howToUse} onChange={set('howToUse')} multiline rows={2}
+        label="이용 방법" value={val('howToUse')} onChange={set('howToUse')} multiline rows={2}
         placeholder="예) 예약 후 방문 · 촬영 40분 · 사진 고르기 20분"
       />
       <Field
-        label="유의사항 (선택)" value={p.caution} onChange={set('caution')} multiline rows={2}
+        label="유의사항 (선택)" value={val('caution')} onChange={set('caution')} multiline rows={2}
         placeholder="예) 예약 변경은 촬영 2일 전까지"
       />
       <Field

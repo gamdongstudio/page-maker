@@ -57,11 +57,9 @@ export function StepSave({ getStage, onNew }: {
       setSaved(out);
       setView('done');
     } catch (e) {
-      const why = e instanceof Error ? e.message : '';
-      setErr(
-        (why || '이미지를 만들지 못했습니다.')
-        + ' 작업 내용은 그대로 있습니다. 사진 수를 줄이거나 잠시 후 다시 해주세요.',
-      );
+      /* 우리말로 된 안내만 그대로 보여주고, 기술적인 오류 글은 보여주지 않는다 */
+      const why = e instanceof Error && /[가-힣]/.test(e.message) ? e.message : '이미지를 만들지 못했습니다.';
+      setErr(why + ' 작업 내용은 그대로 있습니다. 사진 수를 줄이거나 잠시 후 다시 해주세요.');
     } finally {
       setBusy('');
     }

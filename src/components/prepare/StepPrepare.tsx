@@ -316,7 +316,7 @@ export function StepPrepare() {
               onChange={(e) => setPasteText(e.target.value)}
             />
             <button className="btn btn--main" onClick={() => void doPaste()} disabled={busy || !pasteText.trim()}>
-              정리해서 넣기
+              {busy ? '정리하는 중…' : '정리해서 넣기'}
             </button>
             <p className="field__hint">찾은 내용은 아래 칸에 들어갑니다. 이미 적어두신 내용은 바꾸기 전에 여쭤봅니다.</p>
           </div>

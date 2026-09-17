@@ -271,6 +271,7 @@ export default function App() {
     const now = projectRef.current;
     if (!isEmptyProject(now)) {
       if (!confirm('지금 작업은 [내 작업]에 보관하고 새 상세페이지를 시작할까요?')) return;
+      say('지금 작업을 보관하는 중…');
       const id = await saveWork(now, now.title || '이름 없는 작업');
       if (!id) {
         if (!confirm('보관하지 못했습니다. (저장 공간이 부족할 수 있어요) 그래도 새로 시작할까요?')) return;
@@ -333,12 +334,13 @@ export default function App() {
 
           <div className="moremenu">
             <button
-              className="btn btn--icon"
+              className="btn btn--quiet topmenu"
               onClick={() => setMoreOpen((v) => !v)}
-              title="더보기"
-              aria-label="더보기"
+              title="작업 관리 — 새 상세페이지 · 내 작업 · 작업파일"
+              aria-expanded={moreOpen}
             >
-              <Icon name="more" size={17} />
+              작업 관리
+              <Icon name="chevronDown" size={14} />
             </button>
             {moreOpen && (
               <>

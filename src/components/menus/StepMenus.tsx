@@ -109,7 +109,10 @@ export function StepMenus({ focusMenuId, onFocused }: { focusMenuId?: string | n
               <div className="menu__head">
                 <span className="menu__grip" title="끌어서 순서를 바꿀 수 있어요">⠿</span>
                 <span className="menu__no">{i + 1}</span>
-                <span className="menu__title">{m.title}<em className="menu__tpl">{templateLabel(m.kind, m.template)}</em></span>
+                <span className="menu__title">
+                  {m.title}
+                  {templateLabel(m.kind, m.template) && <em className="menu__tpl">{templateLabel(m.kind, m.template)}</em>}
+                </span>
                 <div className="menu__acts">
                   <button className="tiny" onClick={() => setEditId(open ? null : m.id)}>{open ? '닫기' : '편집'}</button>
                   <button className="tiny" onClick={() => duplicate(m.id)}>복제</button>

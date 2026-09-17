@@ -122,8 +122,10 @@ button,input,textarea,select{font-family:inherit}
   position:fixed;inset:0;z-index:60;background:var(--bg);
 }
 
-.detail__menu{cursor:pointer;position:relative}
-.detail__menu:hover{outline:2px solid rgba(47,107,255,.25);outline-offset:6px;border-radius:6px}
+/* 누를 수 있는 모양(손가락·테두리)은 고치는 미리보기에서만 — 완성 예시·최종 미리보기에서는 눌러도 아무 일이 없으므로 */
+.detail__menu{position:relative}
+.detail--edit .detail__menu{cursor:pointer}
+.detail--edit .detail__menu:hover{outline:2px solid rgba(47,107,255,.25);outline-offset:6px;border-radius:6px}
 /* 마우스를 올렸을 때만 보이는 작은 '수정' — 늘 떠 있으면 결과물을 가린다 */
 .detail__edit{
   position:absolute;top:-10px;right:-4px;z-index:5;
@@ -1543,3 +1545,8 @@ button,input,textarea,select{font-family:inherit}
   .viewer__panel{border-radius:0}
   .welcome__btn{min-width:0;width:100%}
 }
+
+/* ③ 탭 — 누르면 곧바로 반응 */
+.edittab__loading{margin:10px 0 0;padding:14px;border-radius:10px;background:#f4f6fa;color:var(--ink-2);font-size:13.5px;text-align:center}
+.edittab__stale{opacity:.35;pointer-events:none}
+.topmenu{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line-2);background:#fff;padding:6px 10px}

@@ -8,7 +8,7 @@ import { hasContent } from '@/components/preview/sectionContent';
  * 저장을 막지 않는다. 퍼센트로 "아직 덜 됐다"고 느끼게 하지도 않는다.
  * 확인하면 좋은 것만 짧게 알려준다.
  */
-export function PageCheck({ onGo }: { onGo: (tab: 'content' | 'photos' | 'menus') => void }) {
+export function PageCheck({ onGo }: { onGo: (tab: 'content' | 'photos' | 'menus' | 'design') => void }) {
   const { project, update } = useProject();
   const [open, setOpen] = useState(false);
   const p = project;

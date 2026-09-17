@@ -142,7 +142,7 @@ export function PhotoLibrary({ compact = false }: { compact?: boolean }) {
               }}
             >
               <button className="libcard__thumb" onClick={() => setBigId(p.id)} title="크게 보기">
-                <img src={p.dataUrl} alt={p.name} />
+                <img src={p.dataUrl} alt={p.name} decoding="async" loading="lazy" />
                 <span className="libcard__no">{i + 1}</span>
                 {p.kind === 'main' && <span className="libcard__main">대표</span>}
                 <span className="libcard__src">{PHOTO_SOURCE_LABEL[p.source ?? 'upload']}</span>

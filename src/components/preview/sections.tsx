@@ -41,6 +41,23 @@ function Img({ photo, width, radius }: { photo: Photo; width: number; radius: nu
   );
 }
 
+/**
+ * 모양에 자리가 없어 못 보여준 사진을 아래에 이어서 보여준다.
+ *
+ * 스타일(영역 모양)을 바꾸면 사진 자리 수가 달라진다. 자리가 모자라 사진이 화면에서
+ * 빠지면 "사진이 사라졌다" 고 느끼므로, 남는 사진은 버리지 않고 두 장씩 나란히 놓는다.
+ */
+function MorePhotos({ photos, from, boxWidth, radius }: { photos: Photo[]; from: number; boxWidth: number; radius: number }) {
+  const rest = photos.slice(from);
+  if (rest.length === 0) return null;
+  const cell = Math.floor((boxWidth - 10) / 2);
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: rest.length === 1 ? '1fr' : '1fr 1fr', gap: 10, marginTop: 12 }}>
+      {rest.map((p) => <Img key={p.id} photo={p} width={rest.length === 1 ? boxWidth : cell} radius={radius} />)}
+    </div>
+  );
+}
+
 /** 비어 있는 칸 안내 — 고치는 중일 때만 보인다. 저장 이미지에는 들어가지 않는다 */
 function Empty({ text }: { text: string }) {
   const editing = useContext(EditingContext);
@@ -189,6 +206,7 @@ export function EventSection({ menu, project, titleStyle, bodyStyle, boxWidth }:
           }}>
             {menu.button || '예약·문의하기'}
           </span>
+          <MorePhotos photos={photos} from={1} boxWidth={boxWidth - 40} radius={d.photoRadius} />
         </div>
       </div>
     );
@@ -212,6 +230,7 @@ export function EventSection({ menu, project, titleStyle, bodyStyle, boxWidth }:
             {body && <p style={{ ...bodyStyle, marginTop: 10, fontSize: d.bodySize - 1 }}>{body}</p>}
           </div>
         </div>
+        <MorePhotos photos={photos} from={1} boxWidth={boxWidth} radius={d.photoRadius} />
       </div>
     );
   }
@@ -324,6 +343,7 @@ export function PerksSection({ menu, project, titleStyle, bodyStyle, boxWidth }:
             );
           })}
         </div>
+        <MorePhotos photos={photos} from={items.length} boxWidth={boxWidth} radius={d.photoRadius} />
       </div>
     );
   }
@@ -340,7 +360,7 @@ export function PerksSection({ menu, project, titleStyle, bodyStyle, boxWidth }:
                 display: 'flex', width: 54, height: 54, borderRadius: 27, margin: '0 auto 10px',
                 background: shade(d.background, -6), color: d.primary,
                 alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800,
-              }}>{project.perks?.[i]?.icon || '✓'}</span>
+              }}>{project.perks?.[i]?.icon || String(i + 1).padStart(2, '0')}</span>
               <b style={{ display: 'block', fontSize: d.bodySize - 1 }}>{it.title}</b>
               {it.body && <span style={{ fontSize: d.bodySize - 3, opacity: .75 }}>{it.body}</span>}
             </div>
@@ -469,9 +489,14 @@ export function PriceSection({ menu, project, titleStyle, bodyStyle }: SectionPr
       <div>
         <h2 style={titleStyle}>{menu.title}</h2>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: d.bodySize + 2, opacity: .5, textDecoration: 'line-through' }}>{list}</span>
-          <span style={{ fontSize: d.titleSize, color: d.primary }}>→</span>
-          <span style={{ fontSize: d.titleSize + 6, fontWeight: 900 }}>{sale}</span>
+          {/* 정상가가 없으면 줄 그은 가격과 화살표를 그리지 않는다 */}
+          {list && sale && (
+            <>
+              <span style={{ fontSize: d.bodySize + 2, opacity: .5, textDecoration: 'line-through' }}>{list}</span>
+              <span style={{ fontSize: d.titleSize, color: d.primary }}>→</span>
+            </>
+          )}
+          <span style={{ fontSize: d.titleSize + 6, fontWeight: 900 }}>{sale || list}</span>
           {percent > 0 && (
             <span style={{
               background: d.primary, color: pickReadable(d.primary), borderRadius: 999,
@@ -480,6 +505,13 @@ export function PriceSection({ menu, project, titleStyle, bodyStyle }: SectionPr
           )}
         </div>
         {pr?.people && <p style={{ ...bodyStyle, marginTop: 12, opacity: .75 }}>{withGijun(pr.people)}</p>}
+        {/* 상품 구성도 함께 — 예전에는 이 모양에서만 구성이 안 보였다 */}
+        {(includes.length > 0 || extras.length > 0) && (
+          <div style={{ marginTop: 16 }}>
+            {includes.map((x, i) => row('포함', x, i))}
+            {extras.map(([k, v], i) => row(k, v, i))}
+          </div>
+        )}
       </div>
     );
   }
@@ -572,6 +604,7 @@ export function ConceptSection({ menu, project, titleStyle, bodyStyle, boxWidth 
           </div>
           {!photoFirst && photos[0] && <Img photo={photos[0]} width={half} radius={d.photoRadius} />}
         </div>
+        <MorePhotos photos={photos} from={1} boxWidth={boxWidth} radius={d.photoRadius} />
       </div>
     );
   }
@@ -592,6 +625,7 @@ export function ConceptSection({ menu, project, titleStyle, bodyStyle, boxWidth 
             </div>
           </div>
         ) : <Empty text="사진을 넣으면 여기에 보입니다." />}
+        <MorePhotos photos={photos} from={3} boxWidth={boxWidth} radius={d.photoRadius} />
         {chips}
       </div>
     );
@@ -616,6 +650,7 @@ export function ConceptSection({ menu, project, titleStyle, bodyStyle, boxWidth 
             </div>
           ))}
         </div>
+        <MorePhotos photos={photos} from={cards.length} boxWidth={boxWidth} radius={d.photoRadius} />
       </div>
     );
   }
@@ -706,6 +741,7 @@ export function BenefitSection({ menu, project, titleStyle, bodyStyle, boxWidth 
             );
           })}
         </div>
+        <MorePhotos photos={photos} from={lines.length} boxWidth={boxWidth} radius={d.photoRadius} />
       </div>
     );
   }
@@ -813,7 +849,12 @@ export function RecommendSection({ menu, project, titleStyle, bodyStyle }: Secti
               background: d.primary, color: pickReadable(d.primary),
               fontSize: 13, fontWeight: 700, display: 'flex',
               alignItems: 'center', justifyContent: 'center', marginTop: 2,
-            }}>✓</span>
+            }}>
+              {/* 체크 모양은 글자(✓)가 아니라 선으로 그린다 — 휴대폰에서 이모지로 바뀌지 않게 */}
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+                <path d="M2.5 6.2l2.3 2.3 4.7-4.9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
             <span>{line}</span>
           </li>
         ))}
