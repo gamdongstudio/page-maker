@@ -30,7 +30,10 @@ export function Welcome({ onExamples, onStart }: { onExamples: () => void; onSta
             </li>
           ))}
         </ol>
-        <p className="welcome__foot">순서대로 따라가면 완성됩니다. 설치 없이 바로 쓸 수 있어요.</p>
+        <p className="welcome__foot">
+          순서대로 따라가면 상세페이지가 완성됩니다.<br />
+          상세페이지 제작은 웹에서 바로 시작할 수 있어요.
+        </p>
       </div>
     </div>
   );
