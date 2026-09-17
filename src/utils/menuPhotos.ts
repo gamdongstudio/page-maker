@@ -21,11 +21,13 @@ export function photosOf(menu: MenuItem, project: ProjectData): Photo[] {
 
 /** 메뉴 성격에 맞는 사진 고르기 (사용자가 직접 지정하지 않았을 때) */
 export function autoPhotosFor(menu: MenuItem, project: ProjectData): Photo[] {
-  const byKind = (k: Photo['kind']) => project.photos.filter((p) => p.kind === k);
+  /* '제외 추천' 이 붙은 사진은 알아서 넣지 않는다 (사용자가 직접 고르면 그때는 쓴다) */
+  const pool = project.photos.filter((p) => !p.exclude);
+  const byKind = (k: Photo['kind']) => pool.filter((p) => p.kind === k);
 
   switch (menu.kind) {
     case 'main':    return byKind('main').slice(0, 1);
-    case 'gallery': return project.photos.filter((p) => p.kind !== 'main' && p.kind !== 'unused').slice(0, 6);
+    case 'gallery': return pool.filter((p) => p.kind !== 'main' && p.kind !== 'unused').slice(0, 6);
     case 'review':  return byKind('review').slice(0, 3);
     case 'event':   return byKind('event').slice(0, 2);
     case 'concept':

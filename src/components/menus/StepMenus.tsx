@@ -4,7 +4,6 @@ import { LITE_MENU_KINDS, MENU_CATALOG, makeMenu, uid } from '@/types/defaults';
 import { useEdition } from '@/store/EditionContext';
 import type { MenuKind } from '@/types/project';
 import { SectionTools } from './SectionTools';
-import { Icon } from '@/components/ui/Icon';
 import { templateLabel } from '@/components/preview/templates';
 
 /** ③ 메뉴 구성 — 화면에서 '블록' 이라는 말은 쓰지 않는다 */
@@ -130,12 +129,7 @@ export function StepMenus({ focusMenuId, onFocused }: { focusMenuId?: string | n
 
       {project.menus.length === 0 && <p className="note">메뉴를 추가하면 상세페이지가 만들어집니다.</p>}
 
-      {/* 말로 구성을 고치는 기능은 **아직 연결되어 있지 않다.** 되는 척하지 않는다. */}
-      <div className="soonchip" aria-disabled="true">
-        <Icon name="sparkle" size={15} />
-        <b>말로 구성 바꾸기</b>
-        <em>준비 중 · AI 연결 후 사용 가능</em>
-      </div>
+      {/* 말로 구성을 고치는 기능은 아직 없다. 눌리지 않는 단추 모양을 보여주지 않는다. */}
     </div>
   );
 }

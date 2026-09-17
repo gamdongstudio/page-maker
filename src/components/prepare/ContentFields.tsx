@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useProject } from '@/store/ProjectStore';
 import { EMPTY_BRIEF, type ProductInfo } from '@/types/project';
 import { EMPTY_PRICING, EMPTY_STUDIO, type ShootProduct, type StudioInfo } from '@/types/studio';
-import { studioDraft } from '@/types/defaults';
 import { loadShootProducts, saveShootProducts } from '@/services/storage/studio';
 import { setPrice } from '@/utils/photoOps';
 import { Field } from '@/components/editor/Fields';
@@ -86,6 +85,10 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
         placeholder="예) 예약 후 방문 · 촬영 40분 · 사진 고르기 20분"
       />
       <Field
+        label="유의사항 (선택)" value={p.caution} onChange={set('caution')} multiline rows={2}
+        placeholder="예) 예약 변경은 촬영 2일 전까지"
+      />
+      <Field
         label="예약·구매 안내" value={p.contact} onChange={set('contact')}
         placeholder="예) 전화 02-000-0000 · 네이버 예약"
       />
@@ -122,11 +125,11 @@ function ProductKind() {
   const pick = (name: string) =>
     update((d) => {
       d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), productName: name };
-      /* 비어 있는 칸만 채운다 — 이미 적어두신 값은 건드리지 않는다 */
-      const draft = studioDraft(name);
-      (Object.keys(draft) as (keyof typeof draft)[]).forEach((k) => {
-        if (!(d.product[k] ?? '').toString().trim() && draft[k]) d.product[k] = draft[k] as string;
-      });
+      /*
+       * 상품 종류만 정한다. 상품명·한 줄 소개는 채우지 않는다.
+       * (예전에는 상품명에 '가족사진' 만 들어가서 자동 추천이 제목을 만들지 못했다)
+       */
+      if (!d.product.category.trim()) d.product.category = name;
       if (!d.title || d.title === '새 상세페이지') d.title = `${name} 상세페이지`;
     }, { label: 'shoot.product', merge: false });
 

@@ -26,6 +26,7 @@ import { ExampleViewer } from '@/components/welcome/ExampleViewer';
  */
 
 const WELCOMED = 'barodu.welcomed';
+const STEP_KEY = 'barodu.step';
 
 export default function App() {
   const {
@@ -34,7 +35,17 @@ export default function App() {
   const { isPro, setEdition } = useEdition();
 
   const [rightHidden, setRightHidden] = useState(false);
-  const [step, setStep] = useState<FlowStep>('prepare');
+  /* 새로고침해도 보던 단계로 돌아온다 (이 컴퓨터에만 기억) */
+  const [step, setStepRaw] = useState<FlowStep>(() => {
+    try {
+      const v = localStorage.getItem(STEP_KEY);
+      return v === 'recommend' || v === 'edit' || v === 'save' ? v : 'prepare';
+    } catch { return 'prepare'; }
+  });
+  const setStep = useCallback((s: FlowStep) => {
+    setStepRaw(s);
+    try { localStorage.setItem(STEP_KEY, s); } catch { /* 기억 못 해도 괜찮다 */ }
+  }, []);
   const [worksOpen, setWorksOpen] = useState(false);
   const [tab, setTab] = useState<EditTab>('content');
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches);
@@ -101,7 +112,7 @@ export default function App() {
     setRightHidden(false);
     setWorksOpen(false);
     setStep(s);
-  }, []);
+  }, [setStep]);
 
   /* 미리보기에서 무엇을 눌렀을 때 오른쪽의 어느 자리로 옮겨갈지 */
   const jump = useCallback((tool: string, menuId?: string) => {
@@ -116,7 +127,7 @@ export default function App() {
       setFocusMenuId(menuId);
       setSelectedId(menuId);
     }
-  }, []);
+  }, [setStep]);
 
   /* ------------------------------------------------------------------ */
   /* 미리보기에서 바로 고치기                                             */

@@ -91,7 +91,7 @@ export function StepSave({ getStage, onNew }: {
 
   if (view === 'helper') {
     return (
-      <div className="stack save">
+      <div className="stack savestep">
         <section className="box">
           <h3 className="box__title">등록 도우미</h3>
           <p className="box__hint">
@@ -110,7 +110,7 @@ export function StepSave({ getStage, onNew }: {
 
   if (view === 'done' && saved) {
     return (
-      <div className="stack save">
+      <div className="stack savestep">
         <section className="savedone">
           <b className="savedone__title">저장되었습니다!</b>
           <p>상세페이지가 완성되었습니다.</p>
@@ -131,7 +131,7 @@ export function StepSave({ getStage, onNew }: {
   }
 
   return (
-    <div className="stack save">
+    <div className="stack savestep">
       <section className="box savehead">
         <b className="savehead__title">상세페이지가 완성되었습니다.</b>
         <p>저장할 방법을 선택해주세요.</p>

@@ -190,6 +190,28 @@ export function StepDesign() {
             />
           </div>
 
+          <div className="row2">
+            <Pick
+              label="제목 굵기" value={d.titleBold === false ? 'normal' : 'bold'}
+              onChange={(v) => update((x) => { x.design.titleBold = v === 'bold'; }, { label: 'design.titleBold', merge: false })}
+              options={[{ value: 'bold' as const, label: '굵게' }, { value: 'normal' as const, label: '보통' }]}
+            />
+            <Pick
+              label="본문 굵기" value={d.bodyBold ? 'bold' : 'normal'}
+              onChange={(v) => update((x) => { x.design.bodyBold = v === 'bold'; }, { label: 'design.bodyBold', merge: false })}
+              options={[{ value: 'normal' as const, label: '보통' }, { value: 'bold' as const, label: '굵게' }]}
+            />
+          </div>
+          <Pick
+            label="정렬 (오른쪽 포함)" value={d.align}
+            onChange={(v) => update((x) => { x.design.align = v; }, { label: 'design.align', merge: false })}
+            options={[
+              { value: 'left' as const, label: '왼쪽' },
+              { value: 'center' as const, label: '가운데' },
+              { value: 'right' as const, label: '오른쪽' },
+            ]}
+          />
+
           <span className="field__label">글씨체 세부 설정</span>
           <div className="row2">
             <Pick

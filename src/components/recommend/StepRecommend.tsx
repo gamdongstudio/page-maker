@@ -43,7 +43,8 @@ export function StepRecommend({ onNext }: { onNext: () => void }) {
   const touched = () => {
     const p = latest.current;
     const at = p.flow?.recommendedAt;
-    if (at) return p.updatedAt > at + 2000;
+    /* 추천을 만든 뒤 한 번이라도 고쳤으면 (제목 고르기 포함) 먼저 묻는다 */
+    if (at) return p.updatedAt > at;
     return p.menus.some((m) => m.body.trim() || m.lines.some((l) => l.trim()));
   };
 
