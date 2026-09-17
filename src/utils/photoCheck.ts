@@ -9,23 +9,39 @@ import type { Photo } from '@/types/project';
  *  - 확신이 없으면 아무 표시도 하지 않는다.
  */
 
-/** 8×8 로 줄여 밝기 평균보다 밝은지 어두운지로 만든 짧은 지문 */
+const GRID = 16;
+
+/**
+ * 같은 사진인지 견주는 지문.
+ *   비율 | 평균 색 | 16×16 밝기 무늬(256칸)
+ *
+ * ⚠ 사진관 사진은 같은 배경에서 찍어 **구도가 비슷한 경우가 많다.**
+ *   무늬만 보면 다른 사진도 같은 사진으로 잘못 판단한다.
+ *   그래서 비율 · 평균 색 · 무늬가 **모두** 거의 같을 때만 같은 사진으로 본다.
+ */
 export function photoHash(dataUrl: string): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
       try {
         const c = document.createElement('canvas');
-        c.width = 8;
-        c.height = 8;
+        c.width = GRID;
+        c.height = GRID;
         const ctx = c.getContext('2d', { willReadFrequently: true });
         if (!ctx) { resolve(''); return; }
-        ctx.drawImage(img, 0, 0, 8, 8);
-        const d = ctx.getImageData(0, 0, 8, 8).data;
+        ctx.drawImage(img, 0, 0, GRID, GRID);
+        const d = ctx.getImageData(0, 0, GRID, GRID).data;
         const lum: number[] = [];
-        for (let i = 0; i < d.length; i += 4) lum.push(d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114);
-        const avg = lum.reduce((a, b) => a + b, 0) / lum.length;
-        resolve(lum.map((v) => (v >= avg ? '1' : '0')).join(''));
+        let r = 0; let g = 0; let b = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          lum.push(d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114);
+          r += d[i]; g += d[i + 1]; b += d[i + 2];
+        }
+        const n = lum.length;
+        const avg = lum.reduce((a, x) => a + x, 0) / n;
+        const ratio = (img.naturalWidth / Math.max(1, img.naturalHeight)).toFixed(3);
+        const bits = lum.map((v) => (v >= avg ? '1' : '0')).join('');
+        resolve(`${ratio}|${Math.round(r / n)},${Math.round(g / n)},${Math.round(b / n)}|${bits}`);
       } catch {
         resolve('');
       }
@@ -35,11 +51,19 @@ export function photoHash(dataUrl: string): Promise<string> {
   });
 }
 
-function distance(a: string, b: string): number {
-  if (!a || !b || a.length !== b.length) return 99;
-  let n = 0;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++;
-  return n;
+/** 두 지문이 같은 사진으로 보이는지 */
+function sameImage(a: string, b: string): boolean {
+  const pa = a.split('|');
+  const pb = b.split('|');
+  if (pa.length !== 3 || pb.length !== 3) return false;
+  if (Math.abs(Number(pa[0]) - Number(pb[0])) > 0.01) return false;
+  const ca = pa[1].split(',').map(Number);
+  const cb = pb[1].split(',').map(Number);
+  if (Math.abs(ca[0] - cb[0]) + Math.abs(ca[1] - cb[1]) + Math.abs(ca[2] - cb[2]) > 12) return false;
+  if (pa[2].length !== pb[2].length) return false;
+  let diff = 0;
+  for (let i = 0; i < pa[2].length; i++) if (pa[2][i] !== pb[2][i]) diff++;
+  return diff <= 6;
 }
 
 /**
@@ -61,7 +85,7 @@ export async function reviewPhotos(added: Photo[], before: Photo[]): Promise<Pho
       why = '너무 작은 이미지 (아이콘·버튼일 수 있어요)';
     } else if (ratio > 3.2 || ratio < 1 / 3.2) {
       why = '가늘고 긴 이미지 (배너·띠 그림일 수 있어요)';
-    } else if (hash && [...known, ...out.map((x) => x.hash ?? '')].some((k) => distance(k, hash) <= 2)) {
+    } else if (hash && [...known, ...out.map((x) => x.hash ?? '')].some((k) => k && sameImage(k, hash))) {
       why = '이미 있는 사진과 같은 사진';
     } else if (w < 500) {
       why = '해상도가 낮아 흐리게 보일 수 있어요';

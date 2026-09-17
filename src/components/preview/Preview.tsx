@@ -9,6 +9,8 @@ export type PreviewMode = 'pc' | 'mobile';
 interface Props {
   /** 미리보기에서 바로 고칠 때 쓰는 고리 */
   edit?: PreviewEdit;
+  /** 지금 고르고 있는 영역 — 테두리로 알려준다 */
+  selectedId?: string | null;
 }
 
 /**
@@ -16,7 +18,7 @@ interface Props {
  * 상세페이지 본체는 실제 폭(860px 또는 390px)으로 그리고,
  * 화면에 맞게 배율만 줄여서 보여준다. (구조는 결과물과 동일)
  */
-export function Preview({ edit }: Props) {
+export function Preview({ edit, selectedId }: Props) {
   const { project } = useProject();
   const [mode, setMode] = useState<PreviewMode>('pc');
   const [full, setFull] = useState(false);
@@ -69,7 +71,7 @@ export function Preview({ edit }: Props) {
           ref={pageRef}
           style={{ transform: `scale(${scale})`, transformOrigin: 'top center', width: pageWidth }}
         >
-          <DetailPage project={project} narrow={mode === 'mobile'} edit={edit} />
+          <DetailPage project={project} narrow={mode === 'mobile'} edit={edit} selectedId={selectedId} />
         </div>
       </div>
     </div>

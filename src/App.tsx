@@ -1,24 +1,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { EditorPanel, type StepKey } from '@/components/editor/EditorPanel';
+import { EditorPanel, type PanelView } from '@/components/editor/EditorPanel';
 import { Icon } from '@/components/ui/Icon';
 import { SplitLayout } from '@/components/layout/SplitLayout';
 import { Preview } from '@/components/preview/Preview';
 import { useProject } from '@/store/ProjectStore';
 import { useEdition } from '@/store/EditionContext';
 import { downloadProjectFile, readProjectFile } from '@/services/storage/local';
+import { saveStudio } from '@/services/storage/studio';
+import { saveWork } from '@/services/storage/works';
 import { ExportStage } from '@/components/export/ExportStage';
 import type { PreviewEdit } from '@/components/preview/editApi';
 import { AddMenuHere } from '@/components/menus/AddMenuHere';
 import { KEY_MENU_KINDS, makeMenu, uid } from '@/types/defaults';
 import { readPhotoFiles } from '@/utils/image';
-import { removePhoto, setMainPhoto, setPrice } from '@/utils/photoOps';
+import { removePhoto, replacePhoto, setMainPhoto, setPrice } from '@/utils/photoOps';
+import { isEmptyProject, type EditTab, type FlowStep } from '@/components/flow/steps';
+import { Welcome } from '@/components/welcome/Welcome';
+import { ExampleViewer } from '@/components/welcome/ExampleViewer';
 
 /**
  * 한 화면에서 전부 한다.
  *
- * 왼쪽 미리보기 · 오른쪽 제작도구 구조를 처음부터 끝까지 유지한다.
- * AI 도 별도 화면이 아니라 오른쪽 ⑤ 패널 안에서 돈다.
+ * 왼쪽 = 실시간 미리보기 · 오른쪽 = ①~④ 단계 편집도구
+ * 처음 온 사람에게는 편집도구보다 **결과(완성 예시)** 를 먼저 보여준다.
  */
+
+const WELCOMED = 'barodu.welcomed';
+
 export default function App() {
   const {
     project, replace, update, undo, redo, canUndo, canRedo, saveState, saveError, newProject,
@@ -26,18 +34,23 @@ export default function App() {
   const { isPro, setEdition } = useEdition();
 
   const [rightHidden, setRightHidden] = useState(false);
-  /* 처음 열면 시작 화면을 거치지 않고 **바로 제작 화면**이다 (왼쪽 미리보기 + 오른쪽 도구) */
-  const [openStep, setOpenStep] = useState<StepKey | null>('ai');
+  const [step, setStep] = useState<FlowStep>('prepare');
+  const [worksOpen, setWorksOpen] = useState(false);
+  const [tab, setTab] = useState<EditTab>('content');
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches);
   const [toast, setToast] = useState('');
   const [focusMenuId, setFocusMenuId] = useState<string | null>(null);
+  /** 미리보기에서 지금 고르고 있는 영역 — 테두리로 표시한다 */
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
-  /** ⑤ 패널로 옮겨가야 할 때 올려두는 표시 */
-  const [jumpTo, setJumpTo] = useState<StepKey | null>(null);
   /** 미리보기의 '+ 여기에 넣기' 를 눌렀을 때 — 보이는 것 기준 자리 */
   const [addAt, setAddAt] = useState<number | null>(null);
+  const [welcome, setWelcome] = useState(false);
+  const [examples, setExamples] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const projectRef = useRef(project);
+  projectRef.current = project;
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 900px)');
@@ -46,6 +59,37 @@ export default function App() {
     return () => mq.removeEventListener('change', on);
   }, []);
 
+  /*
+   * 처음 온 사람에게만 시작 화면.
+   * 저장해 둔 작업이 올라오는 데 잠깐 걸리므로 조금 기다렸다가 판단한다 (깜빡임 방지).
+   */
+  useEffect(() => {
+    let seen = false;
+    try { seen = localStorage.getItem(WELCOMED) === '1'; } catch { /* 못 읽어도 괜찮다 */ }
+    if (seen) return;
+    const t = window.setTimeout(() => {
+      if (isEmptyProject(projectRef.current)) setWelcome(true);
+    }, 500);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  const markWelcomed = () => {
+    try { localStorage.setItem(WELCOMED, '1'); } catch { /* 무시 */ }
+    setWelcome(false);
+  };
+
+  /*
+   * 사진관 정보는 다음 작업에서도 다시 쓰도록 따로 보관한다.
+   * (예전에는 작업 상태를 바꾸는 도중에 보관까지 해서 화면 경고가 났다 — 이제 바뀐 뒤에 한다)
+   */
+  const studioKey = JSON.stringify(project.studio ?? null);
+  useEffect(() => {
+    const s = projectRef.current.studio;
+    if (!s || (!s.name && !s.phone)) return;
+    const t = window.setTimeout(() => { void saveStudio(s); }, 800);
+    return () => window.clearTimeout(t);
+  }, [studioKey]);
+
   const clearFocus = useCallback(() => setFocusMenuId(null), []);
 
   const say = useCallback((m: string) => {
@@ -53,12 +97,25 @@ export default function App() {
     window.setTimeout(() => setToast(''), 2600);
   }, []);
 
-  /* 미리보기에서 무엇을 눌렀을 때 오른쪽의 어느 자리로 옮겨갈지 */
-  const jump = useCallback((tool: StepKey, menuId?: string) => {
+  const goStep = useCallback((s: FlowStep) => {
     setRightHidden(false);
-    setOpenStep(tool);
-    if (menuId) setFocusMenuId(menuId);
-    setJumpTo(tool);
+    setWorksOpen(false);
+    setStep(s);
+  }, []);
+
+  /* 미리보기에서 무엇을 눌렀을 때 오른쪽의 어느 자리로 옮겨갈지 */
+  const jump = useCallback((tool: string, menuId?: string) => {
+    setRightHidden(false);
+    setWorksOpen(false);
+    if (tool === 'check') { setStep('save'); return; }
+    if (tool === 'ai') { setStep('prepare'); return; }
+    const t: EditTab = tool === 'media' ? 'photos' : tool === 'menus' ? 'menus' : tool === 'design' ? 'design' : 'content';
+    setStep('edit');
+    setTab(t);
+    if (menuId) {
+      setFocusMenuId(menuId);
+      setSelectedId(menuId);
+    }
   }, []);
 
   /* ------------------------------------------------------------------ */
@@ -89,18 +146,19 @@ export default function App() {
           if (it) it[key] = value;
         }, { label: `pkg.${key}.${pkgId}` }),
 
-      onJump: (tool, menuId) => jump(tool as StepKey, menuId),
+      onJump: (tool, menuId) => jump(tool, menuId),
 
       onSection: (action, id) => {
-        const m = project.menus.find((x) => x.id === id);
+        const m = projectRef.current.menus.find((x) => x.id === id);
         if (!m) return;
-        /* 사진관 상세페이지에서 중요한 영역은 지우기 전에 한 번 여쭤본다 */
+        /* 중요한 영역은 지우기 전에 한 번 여쭤본다 */
         if ((action === 'hide' || action === 'del') && KEY_MENU_KINDS.includes(m.kind)) {
           const what = action === 'del' ? '지우시겠습니까?' : '숨기시겠습니까?';
-          if (!confirm(`'${m.title}'은(는) 사진관 상세페이지에서 중요한 영역입니다. ${what}`)) return;
+          if (!confirm(`'${m.title}'은(는) 상세페이지에서 중요한 영역입니다. ${what}`)) return;
         }
         if (action === 'del') {
           update((d) => { d.menus = d.menus.filter((x) => x.id !== id); }, { label: 'menu.del', merge: false });
+          if (selectedId === id) setSelectedId(null);
           say('지웠습니다. 되돌리려면 실행취소를 눌러주세요.');
           return;
         }
@@ -109,7 +167,7 @@ export default function App() {
             const x = d.menus.find((y) => y.id === id);
             if (x) x.hidden = true;
           }, { label: 'menu.hide', merge: false });
-          say('숨겼습니다. 구성 편집에서 다시 보이게 할 수 있어요.');
+          say('숨겼습니다. [구성]에서 다시 보이게 할 수 있어요.');
           return;
         }
         if (action === 'dup') {
@@ -152,20 +210,16 @@ export default function App() {
 
       onPhotoFiles: (menuId, photoId, files) => {
         void (async () => {
-          const added = await readPhotoFiles(files);
+          const added = await readPhotoFiles(files, 'upload');
           if (!added.length) {
             say('사진을 읽지 못했습니다. 다른 사진으로 해보세요.');
             return;
           }
           update((d) => {
             if (photoId) {
-              /* 교체 — 자리는 그대로 두고 그림만 바꾼다 (id 를 유지해야 배치가 안 흐트러진다) */
-              const i = d.photos.findIndex((p) => p.id === photoId);
-              if (i >= 0) {
-                const old = d.photos[i];
-                d.photos[i] = { ...added[0], id: old.id, kind: old.kind, caption: old.caption };
-                return;
-              }
+              /* 교체 — 자리는 그대로 두고 그림만 바꾼다 */
+              replacePhoto(d, photoId, added[0]);
+              return;
             }
             const hadMain = d.photos.some((p) => p.kind === 'main');
             d.photos.push(...added);
@@ -175,7 +229,7 @@ export default function App() {
               setMainPhoto(d, added[0].id);
               return;
             }
-            if (!hadMain) added[0].kind = 'main';
+            if (!hadMain) setMainPhoto(d, added[0].id);
             if (m) m.photoIds = [...m.photoIds, ...added.map((a) => a.id)];
           }, { label: 'photos.preview', merge: false });
           say(photoId ? '사진을 바꿨습니다.' : `사진 ${added.length}장을 넣었습니다.`);
@@ -197,15 +251,24 @@ export default function App() {
         jump('media', menuId);
       },
     }),
-    [update, project.menus, jump, say],
+    [update, jump, say, selectedId],
   );
 
-  const onNew = () => {
-    if (!confirm('지금 작업한 내용이 모두 지워집니다. 새로 시작할까요?')) return;
-    newProject(false);
-    setOpenStep('ai');
+  /** 새 상세페이지 — 지금 작업은 잃지 않게 '내 작업'에 보관하고 시작한다 */
+  const onNew = async () => {
     setMoreOpen(false);
-    say('새로 시작합니다.');
+    const now = projectRef.current;
+    if (!isEmptyProject(now)) {
+      if (!confirm('지금 작업은 [내 작업]에 보관하고 새 상세페이지를 시작할까요?')) return;
+      const id = await saveWork(now, now.title || '이름 없는 작업');
+      if (!id) {
+        if (!confirm('보관하지 못했습니다. (저장 공간이 부족할 수 있어요) 그래도 새로 시작할까요?')) return;
+      }
+    }
+    newProject(false);
+    setSelectedId(null);
+    goStep('prepare');
+    say('새 상세페이지를 시작합니다.');
   };
 
   const onOpenFile = async (f: File | undefined) => {
@@ -224,7 +287,7 @@ export default function App() {
     if (isPro) {
       const ok = confirm(
         '간편 편집에서는 자주 사용하는 기능만 표시합니다.\n'
-        + '작업파일과 분할 저장 등 모든 기능은 상세 편집에서 사용할 수 있습니다.\n\n'
+        + '작업파일과 여러 장 저장 등 모든 기능은 상세 편집에서 사용할 수 있습니다.\n\n'
         + '작성하신 내용은 그대로 남습니다. 간편 편집으로 바꿀까요?',
       );
       if (!ok) return;
@@ -237,28 +300,24 @@ export default function App() {
     setMoreOpen(false);
   };
 
+  const view: PanelView = worksOpen ? 'works' : step;
+
   return (
     <div className="app">
       <header className="top">
         <div className="top__brand">
-          BARODU <b>PAGE MAKER</b> <em>{isPro ? '상세 편집' : '간편 편집'}</em>
+          BARODU <b>PAGE MAKER</b>
         </div>
 
         <div className="top__title" title={project.title}>{project.title}</div>
 
         <div className="top__actions">
-          <button className="btn btn--icon" onClick={undo} disabled={!canUndo} title="실행취소 (Ctrl+Z)" aria-label="실행취소">
+          <SaveBadge state={saveState} />
+          <button className="btn btn--icon" onClick={undo} disabled={!canUndo} title="되돌리기 (Ctrl+Z)" aria-label="실행취소">
             <Icon name="undo" size={17} />
           </button>
           <button className="btn btn--icon" onClick={redo} disabled={!canRedo} title="다시하기 (Ctrl+Shift+Z)" aria-label="다시하기">
             <Icon name="redo" size={17} />
-          </button>
-          <span className="divider" />
-          <button
-            className="btn btn--main"
-            onClick={() => { setRightHidden(false); setOpenStep('check'); setJumpTo('check'); }}
-          >
-            <Icon name="download" size={16} />완성·저장
           </button>
 
           <div className="moremenu">
@@ -274,9 +333,10 @@ export default function App() {
               <>
                 <div className="moremenu__mask" onClick={() => setMoreOpen(false)} />
                 <div className="moremenu__list">
-                  <button onClick={onNew}>새로 시작</button>
-                  <button onClick={() => { setOpenStep('works'); setJumpTo('works'); setMoreOpen(false); }}>
-                    내 작업 (저장·불러오기)
+                  <button onClick={() => void onNew()}>새 상세페이지 만들기</button>
+                  <button onClick={() => { setExamples(true); setMoreOpen(false); }}>완성 예시 보기</button>
+                  <button onClick={() => { setWorksOpen(true); setRightHidden(false); setMoreOpen(false); }}>
+                    내 작업 (보관·다시 열기)
                   </button>
                   <button onClick={() => { fileRef.current?.click(); setMoreOpen(false); }}>작업파일 불러오기</button>
                   <button onClick={() => { downloadProjectFile(project); setMoreOpen(false); say('작업파일을 저장했습니다.'); }}>
@@ -292,14 +352,12 @@ export default function App() {
               </>
             )}
           </div>
-
-          <SaveBadge state={saveState} />
         </div>
 
         <input
           ref={fileRef}
           type="file"
-          accept=".json,application/json"
+          accept=".json,.saypage,application/json"
           hidden
           onChange={(e) => { void onOpenFile(e.target.files?.[0]); e.target.value = ''; }}
         />
@@ -310,16 +368,18 @@ export default function App() {
       <SplitLayout
         isMobile={isMobile}
         rightHidden={rightHidden}
-        left={<Preview edit={edit} />}
+        left={<Preview edit={edit} selectedId={selectedId} />}
         right={
           <EditorPanel
-            openStep={openStep}
-            setOpenStep={setOpenStep}
+            view={view}
+            onStep={goStep}
+            onCloseWorks={() => setWorksOpen(false)}
+            tab={tab}
+            onTab={setTab}
             focusMenuId={focusMenuId}
             onFocused={clearFocus}
-            jumpTo={jumpTo}
-            onJumped={() => setJumpTo(null)}
             getStage={() => stageRef.current}
+            onNew={() => void onNew()}
           />
         }
       />
@@ -328,7 +388,7 @@ export default function App() {
         <button className="fab" onClick={() => setRightHidden(false)}>편집도구 열기</button>
       )}
 
-      {/* 미리보기의 '+ 여기에 넣기' — 어떤 메뉴를 넣을지 고른다 */}
+      {/* 미리보기의 '+ 여기에 넣기' — 어떤 영역을 넣을지 고른다 */}
       {addAt !== null && (
         <AddMenuHere
           onClose={() => setAddAt(null)}
@@ -346,6 +406,20 @@ export default function App() {
         />
       )}
 
+      {welcome && (
+        <Welcome
+          onExamples={() => { markWelcomed(); setExamples(true); }}
+          onStart={() => { markWelcomed(); goStep('prepare'); }}
+        />
+      )}
+
+      {examples && (
+        <ExampleViewer
+          onClose={() => setExamples(false)}
+          onStarted={() => { setExamples(false); setSelectedId(null); goStep('prepare'); say('예시 구성으로 새 상세페이지를 시작합니다.'); }}
+        />
+      )}
+
       <ExportStage ref={stageRef} />
 
       {toast && <div className="toast">{toast}</div>}
@@ -357,7 +431,7 @@ function SaveBadge({ state }: { state: 'idle' | 'saving' | 'saved' | 'error' }) 
   const text =
     state === 'saving' ? '저장 중…' :
     state === 'saved' ? '자동저장됨' :
-    state === 'error' ? '저장 실패' : '';
+    state === 'error' ? '자동저장 안 됨' : '';
   if (!text) return null;
   return <span className={'save save--' + state}>{text}</span>;
 }

@@ -51,9 +51,10 @@ const STYLE_TEMPLATES: Record<StylePreset, Partial<Record<MenuKind, string>>> = 
 /**
  * 스타일을 적용한다.
  *
- * @param keepFont 사용자가 글씨체를 직접 골랐으면 그대로 둔다
+ * @param opts.chosen    사용자가 직접 고른 것인지 (자동 추천이 다시 바꾸지 않게 기록)
+ * @param opts.templates 영역 모양까지 바꿀지 (자동 추천은 내용에 맞춰 고른 모양을 지킨다)
  */
-export function applyStyle(d: ProjectData, key: StylePreset, opts: { chosen: boolean }): void {
+export function applyStyle(d: ProjectData, key: StylePreset, opts: { chosen: boolean; templates?: boolean }): void {
   const before = d.design;
   const next: DesignSettings = { ...DESIGN_PRESETS[key] };
 
@@ -74,6 +75,8 @@ export function applyStyle(d: ProjectData, key: StylePreset, opts: { chosen: boo
   next.heroShape = before.heroShape;
   next.styleChosen = opts.chosen || !!before.styleChosen;
   d.design = next;
+
+  if (opts.templates === false) return;
 
   /* 영역 모양 — 글·사진이 다른 곳에 들어 있는 '가격표형'은 건드리지 않는다 */
   const shapes = STYLE_TEMPLATES[key];

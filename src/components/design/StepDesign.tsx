@@ -5,152 +5,156 @@ import { ReferenceCapture } from './ReferenceCapture';
 import { DESIGN_PRESETS } from '@/types/defaults';
 import {
   FONT_LABEL, STYLE_PRESET_LABEL,
-  type AlignStyle, type ButtonStyle, type DesignSettings, type FontKey, type StylePreset,
+  type ButtonStyle, type DesignSettings, type FontKey, type StylePreset,
 } from '@/types/project';
-import { FONT_KEYS, FONT_SAMPLE } from '@/config/fonts';
+import { FONT_CHOICES, FONT_KEYS } from '@/config/fonts';
 import { ensureFonts } from '@/services/fonts/loadFont';
+import {
+  applyStyle, setAllFonts, setTextScale, textScaleOf, TEXT_SCALE_LABEL, type TextScale,
+} from '@/services/design/style';
+import { saveSnapshot } from '@/services/storage/snapshots';
 
-/** ④ 디자인 — 간편 스타일 + 세부 설정 2단계 */
+/**
+ * 디자인 — **완성된 것에서 필요한 부분만 고친다.**
+ *
+ * 처음 보이는 것은 네 가지뿐이다.
+ *   스타일 · 글씨체 · 글자 크기 · 정렬
+ * 나머지(색·간격·여백·버튼·구분선·제목/본문 글씨체 따로)는 [디자인 더 수정하기] 안에 접어둔다.
+ *
+ * ⚠ 스타일을 바꿔도 적어두신 글과 사진은 절대 바뀌지 않는다.
+ */
+
+/** 스타일 카드에 쓰는 짧은 설명 */
+const STYLE_FEEL: Record<StylePreset, string> = {
+  luxury: '차분하고 신뢰감 있게',
+  clean: '정보가 또렷하게',
+  warm: '포근하고 편안하게',
+  emotional: '분위기 있게',
+  minimal: '선과 여백으로 세련되게',
+  bright: '가격·혜택이 눈에 띄게',
+};
+
 export function StepDesign() {
   const { project, update } = useProject();
   const { isPro } = useEdition();
   const d = project.design;
-  const [detail, setDetail] = useState(false);
+  const [more, setMore] = useState(false);
   const [refOpen, setRefOpen] = useState(false);
 
-  /* 간편 스타일을 바꿔도 사용자가 직접 고른 글꼴은 그대로 둔다 */
-  const applyPreset = (key: StylePreset) =>
-    update((x) => {
-      const keepFont = x.design.fontLocked;
-      const before = { titleFont: x.design.titleFont, bodyFont: x.design.bodyFont };
-      x.design = { ...DESIGN_PRESETS[key] };
-      if (keepFont) {
-        x.design.titleFont = before.titleFont;
-        x.design.bodyFont = before.bodyFont;
-        x.design.fontLocked = true;
-      }
-    }, { label: 'design.preset', merge: false });
+  ensureFonts(FONT_CHOICES.map((f) => f.key));
 
-  /** 글꼴 하나로 제목·본문을 함께 바꾼다 (어렵지 않게) */
-  const pickFont = (key: FontKey) =>
-    update((x) => {
-      x.design.titleFont = key;
-      x.design.bodyFont = key;
-      x.design.fontLocked = true;
-    }, { label: 'design.font', merge: false });
-
-  /* 고르기 화면에서 글꼴을 비교할 수 있도록 다섯 개를 미리 받아둔다 */
-  ensureFonts(FONT_KEYS);
+  const pickStyle = (key: StylePreset) => {
+    if (key === d.preset && d.styleChosen) return;
+    void saveSnapshot(project, '스타일 바꾸기 전');
+    update((x) => { applyStyle(x, key, { chosen: true, templates: true }); }, { label: 'design.style', merge: false });
+  };
 
   const set = <K extends keyof DesignSettings>(key: K) => (v: DesignSettings[K]) =>
     update((x) => { (x.design[key] as DesignSettings[K]) = v; }, { label: 'design.' + String(key) });
 
+  const scale = textScaleOf(d);
+  const allFont = d.titleFont === d.bodyFont ? d.titleFont : null;
+
   return (
-    <div className="stack">
+    <div className="stack design">
+      {/* ---------------- 스타일 ---------------- */}
       <div>
-        <span className="field__label">간편 스타일</span>
+        <span className="field__label">스타일</span>
         <div className="stylecards">
           {(Object.keys(STYLE_PRESET_LABEL) as StylePreset[]).map((key) => {
             const t = DESIGN_PRESETS[key];
+            const on = d.preset === key;
             return (
               <button
                 key={key}
-                className={'stylecard' + (d.preset === key ? ' is-on' : '')}
-                onClick={() => applyPreset(key)}
-                title={`${FONT_LABEL[t.titleFont].name} · 사진 모서리 ${t.photoRadius}px`}
+                className={'stylecard' + (on ? ' is-on' : '')}
+                onClick={() => pickStyle(key)}
+                aria-pressed={on}
               >
-                {/* 실제 값으로 그린 작은 미리보기 */}
-                <span className="stylecard__view" style={{ background: t.background }}>
-                  <i
-                    className="stylecard__title"
-                    style={{ fontFamily: FONT_LABEL[t.titleFont].stack, color: t.accent }}
-                  >
+                {/* 실제 값으로 그린 작은 미리보기 — 여백·구분선·사진 모서리·버튼까지 */}
+                <span className="stylecard__view" style={{ background: t.background, padding: Math.round(t.padding / 6) }}>
+                  <i className="stylecard__title" style={{ fontFamily: FONT_LABEL[t.titleFont].stack, color: t.accent, textAlign: t.align }}>
                     가나다
                   </i>
-                  <i className="stylecard__photo" style={{ background: t.primary, borderRadius: t.photoRadius }} />
-                  {/* 가격 한 줄 — 사진·제목·가격·버튼이 다 보여야 실제 느낌이 온다 */}
-                  <i className="stylecard__price">
-                    <s style={{ color: t.text }}>250,000</s>
+                  <i className="stylecard__photo" style={{ background: t.primary, borderRadius: Math.min(8, t.photoRadius), opacity: 0.85 }} />
+                  {t.divider === 'line' && <i className="stylecard__rule" style={{ background: t.text }} />}
+                  <i className="stylecard__price" style={{ justifyContent: t.align === 'left' ? 'flex-start' : 'center' }}>
                     <b style={{ color: t.accent }}>189,000원</b>
                   </i>
                   <i
                     className="stylecard__btn"
                     style={{
                       background: t.primary,
-                      borderRadius: t.buttonStyle === 'pill' ? 999 : t.buttonStyle === 'round' ? 6 : 0,
+                      borderRadius: t.buttonStyle === 'pill' ? 999 : t.buttonStyle === 'round' ? 5 : 0,
+                      alignSelf: t.align === 'left' ? 'flex-start' : 'center',
                     }}
                   />
                 </span>
                 <b>{STYLE_PRESET_LABEL[key]}</b>
-                <em>{FONT_LABEL[t.titleFont].feel}</em>
+                <em>{STYLE_FEEL[key]}</em>
               </button>
             );
           })}
         </div>
-        <p className="field__hint">
-          스타일을 고르면 색상·글씨·여백이 함께 바뀝니다. 카드의 작은 그림이 실제 색과 모양입니다.
-        </p>
+        <p className="field__hint">스타일을 바꾸면 색·글씨·여백·영역 모양이 함께 바뀝니다. 적어두신 글과 사진은 그대로입니다.</p>
       </div>
 
-      {isPro && (
-        <>
-          <button className="more__btn" onClick={() => setRefOpen((v) => !v)}>
-            {refOpen ? '참고 캡처 닫기' : '참고 캡처에서 느낌 가져오기 (색·여백만)'}
-          </button>
-          {refOpen && <ReferenceCapture />}
-        </>
-      )}
-
-      {/* ---------------- 글꼴 ---------------- */}
+      {/* ---------------- 글씨체 ---------------- */}
       <div>
-        <span className="field__label">글꼴</span>
-        <div className="fontlist">
-          {FONT_KEYS.map((k) => {
-            const on = d.bodyFont === k && d.titleFont === k;
-            return (
-              <button
-                key={k}
-                className={'fontcard' + (on ? ' is-on' : '')}
-                onClick={() => pickFont(k)}
-                style={{ fontFamily: FONT_LABEL[k].stack }}
-              >
-                <b>
-                  {on && <i className="fontcard__check" aria-hidden>✓</i>}
-                  {FONT_LABEL[k].name}
-                  <em>{FONT_LABEL[k].feel}</em>
-                </b>
-                <span className="fontcard__sample">{FONT_SAMPLE}</span>
-              </button>
-            );
-          })}
+        <span className="field__label">글씨체</span>
+        <div className="fontchips">
+          {FONT_CHOICES.map((f) => (
+            <button
+              key={f.key}
+              className={'fontchip' + (allFont === f.key ? ' is-on' : '')}
+              style={{ fontFamily: FONT_LABEL[f.key].stack }}
+              onClick={() => update((x) => { setAllFonts(x, f.key); }, { label: 'design.font', merge: false })}
+              aria-pressed={allFont === f.key}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
-        <p className="field__hint">
-          제목과 본문에 함께 적용됩니다. 미리보기·저장 이미지에도 같은 글꼴이 쓰입니다.
-          {d.fontLocked && (
-            <>
-              <br />
-              직접 고르셨으므로 간편 스타일을 바꿔도 이 글꼴이 유지됩니다.{' '}
-              <button
-                className="linkbtn"
-                onClick={() => update((x) => {
-                  const base = DESIGN_PRESETS[x.design.preset];
-                  x.design.titleFont = base.titleFont;
-                  x.design.bodyFont = base.bodyFont;
-                  x.design.fontLocked = false;
-                }, { label: 'design.fontReset', merge: false })}
-              >
-                스타일 추천 글꼴로 되돌리기
-              </button>
-            </>
-          )}
-        </p>
+        {!allFont && <p className="field__hint">제목과 본문 글씨체를 따로 쓰고 있어요. 하나를 누르면 함께 바뀝니다.</p>}
       </div>
 
-      <button className="more__btn" onClick={() => setDetail((v) => !v)}>
-        {detail ? '세부 설정 접기' : '세부 설정 열기'}
+      {/* ---------------- 글자 크기 · 정렬 ---------------- */}
+      <div className="row2">
+        <div className="field">
+          <span className="field__label">글자 크기</span>
+          <div className="seg seg--wide">
+            {(['sm', 'md', 'lg'] as TextScale[]).map((s) => (
+              <button
+                key={s}
+                className={'seg__btn' + (scale === s ? ' is-on' : '')}
+                onClick={() => update((x) => { setTextScale(x, s); }, { label: 'design.scale', merge: false })}
+              >
+                {TEXT_SCALE_LABEL[s]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="field">
+          <span className="field__label">정렬</span>
+          <div className="seg seg--wide">
+            {([['left', '왼쪽'], ['center', '가운데']] as const).map(([a, label]) => (
+              <button
+                key={a}
+                className={'seg__btn' + (d.align === a ? ' is-on' : '')}
+                onClick={() => update((x) => { x.design.align = a; }, { label: 'design.align', merge: false })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <button className="more__btn" onClick={() => setMore((v) => !v)} aria-expanded={more}>
+        {more ? '디자인 더 수정하기 접기' : '디자인 더 수정하기'}
       </button>
 
-      {detail && (
+      {more && (
         <div className="stack">
           <div className="row2">
             <Color label="배경색" value={d.background} onChange={set('background')} />
@@ -161,58 +165,75 @@ export function StepDesign() {
             <Color label="글자색" value={d.text} onChange={set('text')} />
           </div>
 
-          {!isPro && (
-            <p className="field__hint">
-              글씨·여백·버튼 같은 자세한 설정은 PRO에서 쓸 수 있어요.
-            </p>
-          )}
-
-          {isPro && (
-          <>
           <Range label="제목 크기" value={d.titleSize} min={20} max={54} onChange={set('titleSize')} unit="px" />
           <Range label="본문 크기" value={d.bodySize} min={13} max={24} onChange={set('bodySize')} unit="px" />
-          <Range label="메뉴 간격" value={d.menuGap} min={20} max={140} onChange={set('menuGap')} unit="px" />
-          <Range label="여백" value={d.padding} min={0} max={80} onChange={set('padding')} unit="px" />
+          <Range label="영역 사이 간격" value={d.menuGap} min={20} max={140} onChange={set('menuGap')} unit="px" />
+          <Range label="바깥 여백" value={d.padding} min={0} max={80} onChange={set('padding')} unit="px" />
           <Range label="사진 모서리" value={d.photoRadius} min={0} max={40} onChange={set('photoRadius')} unit="px" />
-
-          <div className="row2">
-            <Pick
-              label="제목 글꼴" value={d.titleFont} onChange={(v) => { set('titleFont')(v); set('fontLocked' as never)(true as never); }}
-              options={FONT_KEYS.map((k) => ({ value: k, label: FONT_LABEL[k].name }))}
-            />
-            <Pick
-              label="본문 글꼴" value={d.bodyFont} onChange={(v) => { set('bodyFont')(v); set('fontLocked' as never)(true as never); }}
-              options={FONT_KEYS.map((k) => ({ value: k, label: FONT_LABEL[k].name }))}
-            />
-          </div>
 
           <div className="row2">
             <Pick
               label="버튼 모양" value={d.buttonStyle} onChange={set('buttonStyle')}
               options={[
-                { value: 'round' as ButtonStyle, label: '둥근 모서리' },
                 { value: 'square' as ButtonStyle, label: '각진 모서리' },
+                { value: 'round' as ButtonStyle, label: '둥근 모서리' },
                 { value: 'pill' as ButtonStyle, label: '완전히 둥근' },
               ]}
             />
             <Pick
-              label="정렬" value={d.align} onChange={set('align')}
+              label="영역 구분선" value={d.divider ?? 'none'}
+              onChange={(v) => update((x) => { x.design.divider = v; }, { label: 'design.divider', merge: false })}
               options={[
-                { value: 'center' as AlignStyle, label: '가운데' },
-                { value: 'left' as AlignStyle, label: '왼쪽' },
+                { value: 'none' as const, label: '없음' },
+                { value: 'line' as const, label: '가는 선' },
               ]}
             />
           </div>
 
-          <p className="field__hint">
-            제목과 본문을 따로 정하고 싶을 때만 쓰세요. 글꼴은 상업적으로 쓸 수 있는 것만 넣었습니다.
-          </p>
-          </>
+          <span className="field__label">글씨체 세부 설정</span>
+          <div className="row2">
+            <Pick
+              label="제목 글씨체" value={d.titleFont}
+              onChange={(v: FontKey) => update((x) => { x.design.titleFont = v; x.design.fontLocked = true; }, { label: 'design.titleFont', merge: false })}
+              options={FONT_KEYS.map((k) => ({ value: k, label: fontName(k) }))}
+            />
+            <Pick
+              label="본문 글씨체" value={d.bodyFont}
+              onChange={(v: FontKey) => update((x) => { x.design.bodyFont = v; x.design.fontLocked = true; }, { label: 'design.bodyFont', merge: false })}
+              options={FONT_KEYS.map((k) => ({ value: k, label: fontName(k) }))}
+            />
+          </div>
+          {d.fontLocked && (
+            <button
+              className="linkbtn"
+              onClick={() => update((x) => {
+                const base = DESIGN_PRESETS[x.design.preset];
+                x.design.titleFont = base.titleFont;
+                x.design.bodyFont = base.bodyFont;
+                x.design.fontLocked = false;
+              }, { label: 'design.fontReset', merge: false })}
+            >
+              스타일에 어울리는 글씨체로 되돌리기
+            </button>
+          )}
+
+          {isPro && (
+            <>
+              <button className="more__btn" onClick={() => setRefOpen((v) => !v)}>
+                {refOpen ? '참고 캡처 닫기' : '참고 캡처에서 느낌 가져오기 (색·여백만)'}
+              </button>
+              {refOpen && <ReferenceCapture />}
+            </>
           )}
         </div>
       )}
     </div>
   );
+}
+
+/** 글씨체 이름 — 처음 고르는 다섯 개는 쉬운 이름으로 */
+function fontName(k: FontKey): string {
+  return FONT_CHOICES.find((f) => f.key === k)?.label ?? FONT_LABEL[k].name;
 }
 
 /* ------------------------------------------------------------------ */
@@ -222,7 +243,7 @@ function Color({ label, value, onChange }: { label: string; value: string; onCha
     <label className="field">
       <span className="field__label">{label}</span>
       <span className="colorrow">
-        <input type="color" value={toHex(value)} onChange={(e) => onChange(e.target.value)} />
+        <input type="color" value={toHex(value)} onChange={(e) => onChange(e.target.value)} aria-label={label} />
         <input className="mini" value={value} onChange={(e) => onChange(e.target.value)} />
       </span>
     </label>

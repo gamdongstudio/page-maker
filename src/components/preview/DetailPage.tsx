@@ -33,9 +33,11 @@ interface Props {
   narrow?: boolean;
   /** 미리보기에서 직접 고칠 때 쓰는 고리 (저장 이미지에서는 넘기지 않는다) */
   edit?: PreviewEdit;
+  /** 지금 고르고 있는 영역 (미리보기에서만 테두리로 보인다) */
+  selectedId?: string | null;
 }
 
-export function DetailPage({ project, narrow = false, edit }: Props) {
+export function DetailPage({ project, narrow = false, edit, selectedId }: Props) {
   const d = project.design;
   /* 고른 글꼴만 그때그때 받아온다 (다섯 개를 한꺼번에 받지 않는다) */
   ensureFonts([d.titleFont, d.bodyFont]);
@@ -70,7 +72,7 @@ export function DetailPage({ project, narrow = false, edit }: Props) {
       {visible.map((menu, i) => (
         <div key={menu.id}>
           <div
-            className="detail__menu"
+            className={'detail__menu' + (edit && selectedId === menu.id ? ' is-selected' : '')}
             style={{ marginBottom: i === visible.length - 1 || !edit ? 0 : d.menuGap }}
             onClick={edit ? () => edit.onJump('menus', menu.id) : undefined}
             data-menu-id={menu.id}
@@ -103,6 +105,14 @@ export function DetailPage({ project, narrow = false, edit }: Props) {
               <PhotoBlock menu={menu} project={project} boxWidth={contentWidth} edit={edit} />
             )}
           </div>
+          {/* 영역 구분선 — 스타일에 따라 (미리보기와 저장 이미지 모두) */}
+          {d.divider === 'line' && i < visible.length - 1 && (
+            <div aria-hidden style={{
+              width: 44, height: 1, margin: edit ? `-${Math.round(d.menuGap / 2)}px auto ${Math.round(d.menuGap / 2) - 1}px` : '0 auto -1px',
+              background: d.text, opacity: 0.22,
+              position: 'relative', top: edit ? 0 : Math.floor(d.menuGap / 2) - 14,
+            }} />
+          )}
           {edit && <AddHere onAdd={() => edit.onAddAt(i + 1)} />}
           {/* 저장 이미지에서만 — 영역 사이 가운데에 눈에 안 보이는 경계선을 둔다.
               그림을 자를 때 이 선을 찾아 **영역 단위로** 자르고, 저장 직전에 배경색으로 덮는다. */}

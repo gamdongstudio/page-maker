@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useProject } from '@/store/ProjectStore';
 import { listWorks, openWork, whenText, type WorkSummary } from '@/services/storage/works';
-import type { StepKey } from './EditorPanel';
+/* 예전 단계 이름 — 이 화면은 지금 쓰지 않지만 되돌리기 쉽게 남겨둔다 */
+type StepKey = 'ai' | 'product' | 'media' | 'menus' | 'design' | 'prompter' | 'works' | 'check';
 
 /**
  * 처음 들어왔을 때 오른쪽에 보이는 화면.

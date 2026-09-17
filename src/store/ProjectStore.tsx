@@ -223,7 +223,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return;
       const t = e.target as HTMLElement | null;
-      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;  // 입력 중에는 방해하지 않는다
+      /* 입력 중에는 방해하지 않는다 — 미리보기에서 글자를 고치는 중(눌러서 고치는 칸)도 마찬가지.
+         (예전에는 미리보기 글자를 고치다 Ctrl+Z 를 누르면 작업 전체가 한 단계 되돌아갔다) */
+      if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
       e.preventDefault();
       if (e.shiftKey) redo();
       else undo();
