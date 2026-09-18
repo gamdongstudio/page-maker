@@ -1632,3 +1632,23 @@ button,input,textarea,select{font-family:inherit}
 /* ---- 머리글 공식 가로 로고 ---- */
 .top__logo{height:32px;width:auto}
 @media (max-width:900px){ .top__logo{height:26px} }
+
+
+/* ------------------------------------------------------------------ */
+/* ③ 보면서 고치기 — 한 번에 하나만 열리는 아코디언                    */
+/* ------------------------------------------------------------------ */
+.editaccordion{display:flex;flex-direction:column;gap:7px}
+.editacc{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.editacc.is-open{border-color:var(--brand)}
+.editacc__title{
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  border:0;background:#fff;padding:13px 14px;font:inherit;font-weight:700;text-align:left;cursor:pointer
+}
+.editacc__title:hover{background:#f7f8fa}
+.editacc__title b{font-size:18px;color:var(--ink-3);line-height:1}
+.editacc__body{padding:15px;border-top:1px solid var(--line)}
+
+/* GPT 가격표·이벤트 이미지는 PageMaker 안에서 만들지 않고 프롬프트만 제공한다. */
+.gpttools{border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+.gpttools h4{margin:0 0 3px;font-size:14px}
+.gpttools textarea{resize:vertical}
