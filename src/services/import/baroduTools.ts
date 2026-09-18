@@ -49,6 +49,19 @@ export interface ImportResult {
   description: string;
   text: string;
   images: FoundImage[];
+  /** 스마트플레이스 전용 구조화 정보 — 예전 성공본과 같은 모양 */
+  place?: {
+    placeUrl: string;
+    info: string;
+    news: string;
+    products: string;
+    intro?: string;
+    shootingFields?: string;
+    features?: string;
+    philosophy?: string;
+    bookingUrl: string;
+    talkUrl: string;
+  };
 }
 
 export interface ImportFail {
@@ -296,6 +309,29 @@ export function onPublicAddress(): boolean {
 export async function collectFromUrl(raw: string): Promise<ImportResult | ImportFail> {
   const checked = checkUrl(raw);
   if (!checked.ok) return { ok: false, reason: checked.reason };
+
+  /*
+   * 로컬 개발에서는 이 프로젝트에 함께 들어 있는 collector를 먼저 본다.
+   * 예전 Claude/GPT 성공본의 스마트플레이스 수집 코드를 그대로 검증하기 위한 길이다.
+   * 공개 배포 주소에서는 기존 PM Connect 경로만 사용한다.
+   */
+  if (!onPublicAddress()) {
+    try {
+      const local = await fetch('/api/import-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: checked.url }),
+      });
+      if ((local.headers.get('content-type') ?? '').includes('application/json')) {
+        const data = await local.json() as ImportResult | ImportFail;
+        const looksRight = (data?.ok === true && typeof (data as ImportResult).text === 'string')
+          || (data?.ok === false && typeof (data as ImportFail).reason === 'string');
+        if (looksRight && data.ok) return data;
+      }
+    } catch {
+      /* 로컬 collector가 안 켜져 있으면 아래 PM Connect 경로로 그대로 간다. */
+    }
+  }
 
   const found = await find();
   if (!found) {
