@@ -3,7 +3,7 @@ import { useProject } from '@/store/ProjectStore';
 import type { Photo, ProjectData, SourceLink } from '@/types/project';
 import { uid } from '@/types/defaults';
 import {
-  checkUrl, collectFromUrl, forgetTools, guessSource, SOURCE_LABEL, SOURCE_READINESS, toolsStatus,
+  checkUrl, collectFromUrl, forgetTools, guessSource, localCollectorReady, SOURCE_LABEL, SOURCE_READINESS, toolsStatus,
   type ToolsStatus,
 } from '@/services/import/baroduTools';
 import { downloadImages, photoSourceOf } from '@/services/import/downloadImages';
@@ -50,6 +50,7 @@ export function StepPrepare() {
   const [state, setState] = useState<Record<string, RowState>>({});
   const [busy, setBusy] = useState(false);
   const [tools, setTools] = useState<ToolsStatus | null>(null);
+  const [localReady, setLocalReady] = useState(false);
   const [needConnect, setNeedConnect] = useState(false);
   const [checking, setChecking] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
@@ -59,7 +60,10 @@ export function StepPrepare() {
   const pasteRef = useRef<HTMLTextAreaElement>(null);
 
   /* 이미 연결돼 있으면 작게 알려주기만 한다. 연결 안 돼 있어도 아무것도 띄우지 않는다. */
-  useEffect(() => { void toolsStatus().then(setTools); }, []);
+  useEffect(() => {
+    void toolsStatus().then(setTools);
+    void localCollectorReady().then(setLocalReady);
+  }, []);
 
   /* 사진관 정보를 예전에 적어두셨다면 새 작업에도 가져온다 (비어 있을 때만) */
   useEffect(() => {
@@ -140,9 +144,10 @@ export function StepPrepare() {
 
     /* 연결부터 확인 — 안 돼 있으면 이때 처음으로 안내한다 */
     setBusy(true);
-    const st = await toolsStatus();
+    const [local, st] = await Promise.all([localCollectorReady(), toolsStatus()]);
+    setLocalReady(local);
     setTools(st);
-    if (st.state !== 'connected') {
+    if (!local && st.state !== 'connected') {
       setNeedConnect(true);
       setBusy(false);
       return;
@@ -195,10 +200,11 @@ export function StepPrepare() {
   const recheck = async () => {
     setChecking(true);
     forgetTools();
-    const st = await toolsStatus();
+    const [local, st] = await Promise.all([localCollectorReady(), toolsStatus()]);
+    setLocalReady(local);
     setTools(st);
     setChecking(false);
-    if (st.state === 'connected') {
+    if (local || st.state === 'connected') {
       setNeedConnect(false);
       void fetchAll();
     }
@@ -294,7 +300,7 @@ export function StepPrepare() {
           <button className="btn btn--line srcacts__add" onClick={() => setDraft((prev) => [...prev, { id: uid('src'), url: '' }])} disabled={busy}>
             + 다른 주소 추가
           </button>
-          {tools?.state === 'connected' && <span className="srcready">✓ 네이버 가져오기 준비됨</span>}
+          {(localReady || tools?.state === 'connected') && <span className="srcready">✓ 네이버 가져오기 준비됨</span>}
         </div>
 
         {needConnect && tools && (
