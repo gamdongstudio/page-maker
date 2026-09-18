@@ -19,11 +19,12 @@ import { PageCheck } from './PageCheck';
  * 탭을 누르면 **누른 탭이 곧바로 켜진다.**
  * 사진이 많아 내용을 그리는 데 시간이 걸리면 빈 칸 대신 '불러오는 중…' 을 보여준다.
  */
-export function StepEdit({ tab, onTab, focusMenuId, onFocused }: {
+export function StepEdit({ tab, onTab, focusMenuId, onFocused, onSelect }: {
   tab: EditTab;
   onTab: (t: EditTab) => void;
   focusMenuId?: string | null;
   onFocused?: () => void;
+  onSelect?: (id: string | null) => void;
 }) {
   const [pending, startTransition] = useTransition();
   /** 누른 탭 — 내용보다 먼저 켜 보인다 */
@@ -73,7 +74,7 @@ export function StepEdit({ tab, onTab, focusMenuId, onFocused }: {
             </>
           )}
           {tab === 'photos' && <PhotoLibrary />}
-          {tab === 'menus' && <StepMenus focusMenuId={focusMenuId} onFocused={onFocused} />}
+          {tab === 'menus' && <StepMenus focusMenuId={focusMenuId} onFocused={onFocused} onSelect={onSelect} />}
           {tab === 'design' && <StepDesign />}
         </div>
       </div>

@@ -15,7 +15,7 @@ import { KEY_MENU_KINDS, makeMenu, uid } from '@/types/defaults';
 import { readPhotoFiles } from '@/utils/image';
 import { removePhoto, replacePhoto, setMainPhoto, setPrice } from '@/utils/photoOps';
 import { isEmptyProject, type EditTab, type FlowStep } from '@/components/flow/steps';
-import { Welcome } from '@/components/welcome/Welcome';
+import { shownMenus } from '@/components/preview/sectionContent';
 import { ExampleViewer } from '@/components/welcome/ExampleViewer';
 
 /**
@@ -25,7 +25,6 @@ import { ExampleViewer } from '@/components/welcome/ExampleViewer';
  * 처음 온 사람에게는 편집도구보다 **결과(완성 예시)** 를 먼저 보여준다.
  */
 
-const WELCOMED = 'barodu.welcomed';
 const STEP_KEY = 'barodu.step';
 
 export default function App() {
@@ -56,7 +55,6 @@ export default function App() {
   const [moreOpen, setMoreOpen] = useState(false);
   /** 미리보기의 '+ 여기에 넣기' 를 눌렀을 때 — 보이는 것 기준 자리 */
   const [addAt, setAddAt] = useState<number | null>(null);
-  const [welcome, setWelcome] = useState(false);
   const [examples, setExamples] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -70,24 +68,7 @@ export default function App() {
     return () => mq.removeEventListener('change', on);
   }, []);
 
-  /*
-   * 처음 온 사람에게만 시작 화면.
-   * 저장해 둔 작업이 올라오는 데 잠깐 걸리므로 조금 기다렸다가 판단한다 (깜빡임 방지).
-   */
-  useEffect(() => {
-    let seen = false;
-    try { seen = localStorage.getItem(WELCOMED) === '1'; } catch { /* 못 읽어도 괜찮다 */ }
-    if (seen) return;
-    const t = window.setTimeout(() => {
-      if (isEmptyProject(projectRef.current)) setWelcome(true);
-    }, 500);
-    return () => window.clearTimeout(t);
-  }, []);
-
-  const markWelcomed = () => {
-    try { localStorage.setItem(WELCOMED, '1'); } catch { /* 무시 */ }
-    setWelcome(false);
-  };
+  /* 따로 시작 화면을 두지 않는다 — 들어오면 바로 ① 자료 준비. 완성 예시는 ① 위쪽에서 연다 */
 
   /*
    * 사진관 정보는 다음 작업에서도 다시 쓰도록 따로 보관한다.
@@ -196,7 +177,7 @@ export default function App() {
         }
         /* 위로 / 아래로 — 보이는 것끼리 자리를 바꾼다 */
         update((d) => {
-          const visible = d.menus.filter((x) => !x.hidden);
+          const visible = shownMenus(d, selectedId);
           const vi = visible.findIndex((x) => x.id === id);
           const other = visible[action === 'up' ? vi - 1 : vi + 1];
           if (!other) return;
@@ -318,7 +299,7 @@ export default function App() {
     <div className="app">
       <header className="top">
         <div className="top__brand">
-          BARODU <b>PAGE MAKER</b>
+          <b>PageMaker</b> <span className="top__by">by BARODU</span>
         </div>
 
         <div className="top__title" title={project.title}>{project.title}</div>
@@ -393,6 +374,8 @@ export default function App() {
             onFocused={clearFocus}
             getStage={() => stageRef.current}
             onNew={() => void onNew()}
+            onExamples={() => setExamples(true)}
+            onSelect={setSelectedId}
           />
         }
       />
@@ -406,23 +389,19 @@ export default function App() {
         <AddMenuHere
           onClose={() => setAddAt(null)}
           onPick={(kind) => {
+            const made = makeMenu(kind);
             update((d) => {
-              const visible = d.menus.filter((m) => !m.hidden);
+              const visible = shownMenus(d, selectedId);
               const at = addAt >= visible.length
                 ? d.menus.length
                 : d.menus.findIndex((m) => m.id === visible[addAt].id);
-              d.menus.splice(at, 0, makeMenu(kind));
+              d.menus.splice(at, 0, made);
             }, { label: 'menu.add', merge: false });
             setAddAt(null);
-            say('넣었습니다. 글자를 눌러 바로 고칠 수 있어요.');
+            /* 새 영역은 비어 있으므로 골라둔 채로 열어준다 — 바로 채울 수 있게 */
+            jump('menus', made.id);
+            say('넣었습니다. 오른쪽에서 내용을 채우면 그대로 보입니다.');
           }}
-        />
-      )}
-
-      {welcome && (
-        <Welcome
-          onExamples={() => { markWelcomed(); setExamples(true); }}
-          onStart={() => { markWelcomed(); goStep('prepare'); }}
         />
       )}
 

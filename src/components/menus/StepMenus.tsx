@@ -5,14 +5,28 @@ import { useEdition } from '@/store/EditionContext';
 import type { MenuKind } from '@/types/project';
 import { SectionTools } from './SectionTools';
 import { templateLabel } from '@/components/preview/templates';
+import { hasContent } from '@/components/preview/sectionContent';
 
 /** ③ 메뉴 구성 — 화면에서 '블록' 이라는 말은 쓰지 않는다 */
-export function StepMenus({ focusMenuId, onFocused }: { focusMenuId?: string | null; onFocused?: () => void }) {
+export function StepMenus({ focusMenuId, onFocused, onSelect }: {
+  focusMenuId?: string | null;
+  onFocused?: () => void;
+  /** 연 카드 — 비어 있는 영역도 미리보기에 보이게 알려준다 */
+  onSelect?: (id: string | null) => void;
+}) {
   const { project, update } = useProject();
   const { isPro } = useEdition();
   const [adding, setAdding] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const dragId = useRef<string | null>(null);
+
+  /* 카드를 열면 그 영역을 골라둔다 — 비어 있어도 미리보기에서 채울 수 있게 보인다 */
+  /* 처음 열릴 때는 건드리지 않는다 — 미리보기에서 고른 영역이 풀리지 않게 */
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!opened.current) { opened.current = true; return; }
+    onSelect?.(editId);
+  }, [editId, onSelect]);
 
   /*
    * 미리보기에서 섹션을 누르면 그 카드를 연다.
@@ -112,6 +126,7 @@ export function StepMenus({ focusMenuId, onFocused }: { focusMenuId?: string | n
                 <span className="menu__title">
                   {m.title}
                   {templateLabel(m.kind, m.template) && <em className="menu__tpl">{templateLabel(m.kind, m.template)}</em>}
+                  {!hasContent(m, project) && <em className="menu__empty">비어 있음</em>}
                 </span>
                 <div className="menu__acts">
                   <button className="tiny" onClick={() => setEditId(open ? null : m.id)}>{open ? '닫기' : '편집'}</button>

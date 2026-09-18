@@ -11,10 +11,10 @@ export function Welcome({ onExamples, onStart }: { onExamples: () => void; onSta
   return (
     <div className="welcome" role="dialog" aria-label="시작하기">
       <div className="welcome__card">
-        <p className="welcome__brand">BARODU <b>PAGE MAKER</b></p>
+        <p className="welcome__brand"><b>PageMaker</b></p>
         <h1 className="welcome__title">가지고 있는 글과 사진으로<br />상세페이지를 만들어보세요.</h1>
         <p className="welcome__text">
-          자료를 불러오거나 직접 입력하면 BARODU가 기본 구성을 먼저 만들어드립니다.
+          자료를 불러오거나 직접 입력하면 PageMaker가 기본 구성을 먼저 만들어드립니다.
         </p>
 
         <div className="welcome__acts">

@@ -1550,3 +1550,16 @@ button,input,textarea,select{font-family:inherit}
 .edittab__loading{margin:10px 0 0;padding:14px;border-radius:10px;background:#f4f6fa;color:var(--ink-2);font-size:13.5px;text-align:center}
 .edittab__stale{opacity:.35;pointer-events:none}
 .topmenu{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line-2);background:#fff;padding:6px 10px}
+
+/* ---- PageMaker 이름 옆 작은 표기 ---- */
+.top__brand .top__by{font-size:11px;font-weight:500;opacity:.55;margin-left:4px;letter-spacing:0}
+
+/* ---- ① 자료 준비 맨 위 짧은 안내 ---- */
+.prepintro{padding:2px 2px 4px}
+.prepintro__lead{margin:0;font-size:15px;font-weight:700;color:var(--ink,#1a1a1a)}
+.prepintro__sub{margin:4px 0 0;font-size:13px;color:var(--muted,#666);line-height:1.5}
+.prepintro__ex{margin:6px 0 0;font-size:12.5px;color:var(--muted,#666)}
+.prepintro__ex .linkbtn{margin-left:4px}
+
+/* ---- 구성: 비어 있는 영역 표시 ---- */
+.menu__empty{font-style:normal;font-size:11px;color:#9a9a9a;margin-left:6px;font-weight:500}

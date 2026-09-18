@@ -44,7 +44,7 @@ export function PageCheck({ onGo }: { onGo: (tab: 'content' | 'photos' | 'menus'
           </ul>
           {empty.length > 0 && (
             <p className="field__hint">
-              비어 있는 영역 <b>{empty.map((m) => m.title).join(' · ')}</b> 은(는) 저장할 때 빠집니다.{' '}
+              비어 있는 영역 <b>{empty.map((m) => m.title).join(' · ')}</b> 은(는) 미리보기와 저장 이미지에서 빠집니다.{' '}
               <button
                 className="linkbtn"
                 onClick={() => update((d) => {

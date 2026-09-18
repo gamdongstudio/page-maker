@@ -135,5 +135,5 @@ export async function buildZip(v: SmartStorePayload): Promise<Blob> {
 
 /** ZIP 파일 이름 */
 export function zipFileName(v: SmartStorePayload): string {
-  return 'BARODU_스마트스토어_' + (safeName(v.productName || v.baseName) || '상품') + '.zip';
+  return 'PageMaker_스마트스토어_' + (safeName(v.productName || v.baseName) || '상품') + '.zip';
 }

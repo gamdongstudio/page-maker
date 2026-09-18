@@ -40,7 +40,7 @@ interface ImportReport {
   snapshotAt?: number;
 }
 
-export function StepPrepare() {
+export function StepPrepare({ onExamples }: { onExamples?: () => void }) {
   const { project, update, replace } = useProject();
   const latest = useRef(project);
   latest.current = project;
@@ -233,10 +233,22 @@ export function StepPrepare() {
 
   return (
     <div className="stack prepare">
+      {/* ---------------- 처음 안내 (따로 시작 화면을 두지 않고 여기서 짧게) ---------------- */}
+      <div className="prepintro">
+        <p className="prepintro__lead">가지고 있는 글과 사진으로 상세페이지를 만들어보세요.</p>
+        <p className="prepintro__sub">자료를 불러오거나 직접 입력하면 PageMaker가 기본 구성을 먼저 만들어드립니다.</p>
+        {onExamples && (
+          <p className="prepintro__ex">
+            처음이신가요? <button type="button" className="linkbtn" onClick={onExamples}>완성 예시 보기</button>
+          </p>
+        )}
+      </div>
+
       {/* ---------------- 주소 ---------------- */}
       <section className="box">
         <h3 className="box__title">가지고 있는 페이지가 있다면 주소를 넣어주세요.</h3>
         <p className="box__hint">글과 사진을 찾아 정리해드립니다.</p>
+        <p className="box__hint">주소가 없으면 아래 내용을 직접 입력하셔도 됩니다.</p>
 
         <div className="srclist">
           {draft.map((row, i) => {

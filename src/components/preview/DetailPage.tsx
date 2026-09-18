@@ -14,7 +14,7 @@ import { ensureFonts } from '@/services/fonts/loadFont';
 import { Editable } from './Editable';
 import type { PreviewEdit } from './editApi';
 import { EditingContext } from './editing';
-import { hasContent } from './sectionContent';
+import { shownMenus } from './sectionContent';
 import { cutMarkColor } from '@/services/export/exportImage';
 
 /**
@@ -60,7 +60,7 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
    * 저장 이미지(edit 없음)에서는 **내용이 없는 영역을 뺀다.**
    * 미리보기에서는 채울 수 있게 그대로 보여주고, 빠진다는 것을 작게 알린다.
    */
-  const visible = project.menus.filter((m) => !m.hidden && (!!edit || hasContent(m, project)));
+  const visible = edit ? shownMenus(project, selectedId) : shownMenus(project);
   const sidePad = narrow ? Math.min(d.padding, 20) : d.padding;
   const contentWidth = width - sidePad * 2;
 
@@ -94,16 +94,16 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
                 edit={edit}
               />
             )}
-            {edit && !hasContent(menu, project) && (
-              <span className="emptytag">비어 있어 저장할 때는 빠집니다</span>
-            )}
-            <MenuBody
-              menu={menu} project={project} narrow={narrow}
-              boxWidth={contentWidth} edit={edit}
-            />
-            {!ownsPhotos(menu.kind, menu.template) && (
-              <PhotoBlock menu={menu} project={project} boxWidth={contentWidth} edit={edit} />
-            )}
+            {/* 입력 안내("여기에 보입니다" 등)는 지금 고르고 있는 영역에서만 보인다 */}
+            <EditingContext.Provider value={!!edit && selectedId === menu.id}>
+              <MenuBody
+                menu={menu} project={project} narrow={narrow}
+                boxWidth={contentWidth} edit={edit} selected={selectedId === menu.id}
+              />
+              {!ownsPhotos(menu.kind, menu.template) && (
+                <PhotoBlock menu={menu} project={project} boxWidth={contentWidth} edit={edit} selected={selectedId === menu.id} />
+              )}
+            </EditingContext.Provider>
           </div>
           {/* 영역 구분선 — 스타일에 따라 (미리보기와 저장 이미지 모두) */}
           {d.divider === 'line' && i < visible.length - 1 && (
@@ -179,8 +179,8 @@ function AddHere({ onAdd }: { onAdd: () => void }) {
 
 /* ------------------------------------------------------------------ */
 
-function MenuBody({ menu, project, narrow, boxWidth, edit }: {
-  menu: MenuItem; project: ProjectData; narrow: boolean; boxWidth: number; edit?: PreviewEdit;
+function MenuBody({ menu, project, narrow, boxWidth, edit, selected = false }: {
+  menu: MenuItem; project: ProjectData; narrow: boolean; boxWidth: number; edit?: PreviewEdit; selected?: boolean;
 }) {
   const d = project.design;
   const p = project.product;
@@ -232,7 +232,7 @@ function MenuBody({ menu, project, narrow, boxWidth, edit }: {
     case 'main':
       return (
         <div>
-          {(p.brand || edit) && (
+          {(p.brand || (edit && selected)) && (
             <Editable
               as="p"
               on={!!edit}
@@ -250,7 +250,7 @@ function MenuBody({ menu, project, narrow, boxWidth, edit }: {
             style={{ ...titleStyle, fontSize: narrow ? Math.round(d.titleSize * 0.95) : d.titleSize + 6 }}
             onSave={(v) => edit?.onProduct('name', v)}
           />
-          {(p.tagline || edit) && (
+          {(p.tagline || (edit && selected)) && (
             <Editable
               as="p"
               on={!!edit}
@@ -260,7 +260,7 @@ function MenuBody({ menu, project, narrow, boxWidth, edit }: {
               onSave={(v) => edit?.onProduct('tagline', v)}
             />
           )}
-          <PriceRow project={project} edit={edit} />
+          <PriceRow project={project} edit={edit} selected={selected} />
         </div>
       );
 
@@ -407,8 +407,8 @@ function MenuBody({ menu, project, narrow, boxWidth, edit }: {
  * 메뉴에 딸린 사진.
  * 메뉴에 직접 지정한 사진이 없으면, 메뉴 성격에 맞는 사진을 알아서 보여준다.
  */
-function PhotoBlock({ menu, project, boxWidth, edit }: {
-  menu: MenuItem; project: ProjectData; boxWidth: number; edit?: PreviewEdit;
+function PhotoBlock({ menu, project, boxWidth, edit, selected = false }: {
+  menu: MenuItem; project: ProjectData; boxWidth: number; edit?: PreviewEdit; selected?: boolean;
 }) {
   const d = project.design;
   const list = photosOf(menu, project);
@@ -418,7 +418,8 @@ function PhotoBlock({ menu, project, boxWidth, edit }: {
 
   /* 사진이 하나도 없을 때 — 편집 중에만 '여기에 사진 넣기' 칸을 보여준다 */
   if (list.length === 0) {
-    if (!edit) return null;
+    /* '여기에 사진 넣기' 칸은 지금 고르고 있는 영역에서만 */
+    if (!edit || !selected) return null;
     return (
       <>
         <button
@@ -565,12 +566,12 @@ function ctaButtons(p: ProjectData): { label: string }[] {
   return out.length ? out.slice(0, 3) : [{ label: '예약·문의하기' }];
 }
 
-function PriceRow({ project, big = false, edit }: {
-  project: ProjectData; big?: boolean; edit?: PreviewEdit;
+function PriceRow({ project, big = false, edit, selected = false }: {
+  project: ProjectData; big?: boolean; edit?: PreviewEdit; selected?: boolean;
 }) {
   const d = project.design;
   const { listPrice, salePrice } = project.product;
-  if (!listPrice && !salePrice && !edit) return null;
+  if (!listPrice && !salePrice && !(edit && selected)) return null;
 
   const list = formatWon(listPrice);
   const sale = formatWon(salePrice);

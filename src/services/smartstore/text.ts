@@ -43,7 +43,7 @@ function bullets(v: string): string {
 /** 전체 문구 — ZIP 안의 `스마트스토어_입력내용.txt` 와 [전체 문구 복사] 가 같은 글이다 */
 export function fullText(v: SmartStorePayload): string {
   const head = [
-    'BARODU PAGE MAKER — 스마트스토어 입력내용',
+    'PageMaker — 스마트스토어 입력내용',
     '',
     '아래 [   ] 아래의 글을 그대로 복사해서 스마트스토어의 같은 칸에 붙여넣으세요.',
     '',
@@ -62,7 +62,7 @@ export function fullText(v: SmartStorePayload): string {
     '  03_상세페이지  → 상세설명 이미지 (번호 순서대로 올려주세요)',
     '',
     '카테고리·배송·반품 설정은 스마트스토어에서 직접 골라주세요.',
-    'BARODU 는 그 값을 대신 정하지 않습니다.',
+    'PageMaker 는 그 값을 대신 정하지 않습니다.',
   ];
 
   return [...head, ...body, ...tail].join('\n');

@@ -10,6 +10,17 @@ import { photosOf } from '@/utils/menuPhotos';
  * ⚠ 영역을 지우는 것이 아니다. 작업 내용은 그대로이고, 내용을 넣으면 바로 다시 나온다.
  * ⚠ 기준은 각 영역 모양(sections.tsx)이 "비어 있음" 안내를 띄우는 조건과 같다.
  */
+/**
+ * 미리보기에 보여줄 영역.
+ *
+ * 내용이 없는 영역은 **미리보기에서도** 숨긴다. (저장 이미지와 같은 모습)
+ * 다만 지금 고르고 있는 영역은 비어 있어도 보여줘서 바로 채울 수 있게 한다.
+ * ⚠ 데이터는 지우지 않는다. 내용을 넣으면 곧바로 다시 나타난다.
+ */
+export function shownMenus(project: ProjectData, selectedId?: string | null): MenuItem[] {
+  return project.menus.filter((m) => !m.hidden && (m.id === selectedId || hasContent(m, project)));
+}
+
 export function hasContent(menu: MenuItem, project: ProjectData): boolean {
   const has = (s?: string) => !!(s && s.trim());
   const lines = menu.lines.some((l) => l.trim());
