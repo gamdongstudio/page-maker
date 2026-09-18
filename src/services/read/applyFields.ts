@@ -28,12 +28,25 @@ export function applyReadFields(d: ProjectData, fields: ReadField[]): StudioInfo
   setIf('hours', get('hours'));
   setIf('offDays', get('offDays'));
   setIf('bookingUrl', get('bookingUrl'));
+  setIf('placeUrl', get('placeUrl'));
+  setIf('talkUrl', get('talkUrl'));
+  setIf('intro', get('intro'));
   d.studio = studio;
 
   /* --- 무엇을 만들지 --- */
   d.shoot = { ...(d.shoot ?? EMPTY_BRIEF) };
-  if (get('productName')) d.shoot.productName = get('productName');
+  if (get('productName')) {
+    d.shoot.productName = get('productName');
+    d.product.name = get('productName');
+  }
   if (get('area')) d.shoot.area = get('area');
+  if (get('shootingFields')) d.product.category = get('shootingFields');
+  if (get('features')) d.product.benefits = get('features');
+  if (get('philosophy')) {
+    d.shoot.emphasis = get('philosophy');
+    d.product.tagline = get('philosophy');
+  }
+  if (get('intro')) d.product.description = get('intro');
 
   /* --- 가격 --- */
   const listPrice = get('listPrice');
@@ -79,6 +92,10 @@ export function applyReadFields(d: ProjectData, fields: ReadField[]): StudioInfo
       const [title, ...rest] = line.split('|');
       return { id: uid('perk'), title: title.trim(), body: rest.join('|').trim(), photoId: '', icon: '' };
     });
+    d.event = { ...EMPTY_EVENT, ...(d.event ?? {}) };
+    const eventTitle = perks.find((line) => /(이벤트|할인|쿠폰|프로모션|특가|혜택|증정)/.test(line));
+    if (eventTitle) d.event.title = eventTitle;
+    d.event.body = perks.join('\n');
   }
 
   /* --- 촬영 콘셉트 --- */
@@ -90,8 +107,10 @@ export function applyReadFields(d: ProjectData, fields: ReadField[]): StudioInfo
   }
 
   /* --- 문의 정보 (마지막 예약·문의에서 쓴다) --- */
-  const contact = [studio.phone, studio.bookingUrl].filter(Boolean).join(' · ');
+  const contact = [studio.phone, studio.talkUrl].filter(Boolean).join(' · ');
   if (contact) d.product.contact = contact;
+  const destination = studio.bookingUrl || studio.placeUrl;
+  if (destination) d.product.buyLink = destination;
   if (studio.name) d.product.brand = studio.name;
 
   return studio;
