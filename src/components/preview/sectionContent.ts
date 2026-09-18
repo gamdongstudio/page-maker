@@ -1,5 +1,6 @@
 import type { MenuItem, ProjectData } from '@/types/project';
 import { photosOf } from '@/utils/menuPhotos';
+import { youtubeOf } from '@/utils/youtube';
 
 /**
  * 이 영역에 **보여줄 내용이 있는지.**
@@ -34,7 +35,8 @@ export function hasContent(menu: MenuItem, project: ProjectData): boolean {
     case 'cta': {
       const s = project.studio;
       return has(menu.body) || has(p.contact) || has(p.buyLink)
-        || has(s?.bookingUrl) || has(s?.phone) || has(s?.sns);
+        || has(s?.bookingUrl) || has(s?.phone) || has(s?.sns)
+        || has(s?.talkUrl) || has(s?.placeUrl) || !!youtubeOf(s?.videoUrl);
     }
 
     case 'event': {

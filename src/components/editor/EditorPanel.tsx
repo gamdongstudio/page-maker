@@ -32,14 +32,12 @@ interface Props {
   onFocused?: () => void;
   getStage: () => HTMLElement | null;
   onNew: () => void;
-  /** 완성 예시 보기 */
-  onExamples?: () => void;
   /** 구성에서 연 영역 — 미리보기에서 비어 있어도 보이게 */
   onSelect?: (id: string | null) => void;
 }
 
 export function EditorPanel({
-  view, onStep, onCloseWorks, tab, onTab, focusMenuId, onFocused, getStage, onNew, onExamples, onSelect,
+  view, onStep, onCloseWorks, tab, onTab, focusMenuId, onFocused, getStage, onNew, onSelect,
 }: Props) {
   const { isPro } = useEdition();
   const boxRef = useRef<HTMLDivElement>(null);
@@ -70,7 +68,7 @@ export function EditorPanel({
       <div className="panelbody">
         {view === 'prepare' && (
           <>
-            <StepPrepare onExamples={onExamples} />
+            <StepPrepare />
             <StepNav step="prepare" onGo={onStep} />
           </>
         )}

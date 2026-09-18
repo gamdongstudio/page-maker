@@ -26,11 +26,16 @@ export interface StudioInfo {
   offDays: string;     // 휴무일
   intro: string;       // 사진관 소개
   logoDataUrl: string; // 로고 (선택)
+  /* 예전 작업에는 없을 수 있다 — 없으면 빈 값으로 본다 */
+  talkUrl?: string;    // 네이버 톡톡
+  placeUrl?: string;   // 네이버 지도 · 스마트플레이스
+  videoUrl?: string;   // YouTube / Shorts
 }
 
 export const EMPTY_STUDIO: StudioInfo = {
   name: '', area: '', address: '', phone: '', bookingUrl: '',
   sns: '', hours: '', offDays: '', intro: '', logoDataUrl: '',
+  talkUrl: '', placeUrl: '', videoUrl: '',
 };
 
 export function studioIsEmpty(s: StudioInfo | undefined): boolean {

@@ -16,7 +16,7 @@ import { readPhotoFiles } from '@/utils/image';
 import { removePhoto, replacePhoto, setMainPhoto, setPrice } from '@/utils/photoOps';
 import { isEmptyProject, type EditTab, type FlowStep } from '@/components/flow/steps';
 import { shownMenus } from '@/components/preview/sectionContent';
-import { ExampleViewer } from '@/components/welcome/ExampleViewer';
+import { HowToUse } from '@/components/flow/HowToUse';
 
 /**
  * 한 화면에서 전부 한다.
@@ -55,7 +55,7 @@ export default function App() {
   const [moreOpen, setMoreOpen] = useState(false);
   /** 미리보기의 '+ 여기에 넣기' 를 눌렀을 때 — 보이는 것 기준 자리 */
   const [addAt, setAddAt] = useState<number | null>(null);
-  const [examples, setExamples] = useState(false);
+  const [howOpen, setHowOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const projectRef = useRef(project);
@@ -299,8 +299,9 @@ export default function App() {
     <div className="app">
       <header className="top">
         <div className="top__brand">
-          {/* 공식 로고 (원본에서 바깥 여백만 잘라 비율 그대로 줄인 것) */}
-          <img className="top__logo" src="/pagemaker-logo.png" alt="PageMaker" width={257} height={240} />
+          {/* 공식 로고 + 이름 */}
+          <img className="top__logo" src="/pagemaker-logo.png" alt="" />
+          <span className="top__name">Page Maker</span>
         </div>
 
         <div className="top__title" title={project.title}>{project.title}</div>
@@ -313,6 +314,14 @@ export default function App() {
           <button className="btn btn--icon" onClick={redo} disabled={!canRedo} title="다시하기 (Ctrl+Shift+Z)" aria-label="다시하기">
             <Icon name="redo" size={17} />
           </button>
+
+          <div className="moremenu">
+            <button className="btn btn--quiet topmenu" onClick={() => setHowOpen((v) => !v)} aria-expanded={howOpen}>
+              사용방법
+            </button>
+            {howOpen && <HowToUse step={step} onClose={() => setHowOpen(false)} />}
+          </div>
+          <span className="divider" />
 
           <div className="moremenu">
             <button
@@ -329,7 +338,6 @@ export default function App() {
                 <div className="moremenu__mask" onClick={() => setMoreOpen(false)} />
                 <div className="moremenu__list">
                   <button onClick={() => void onNew()}>새 상세페이지 만들기</button>
-                  <button onClick={() => { setExamples(true); setMoreOpen(false); }}>완성 예시 보기</button>
                   <button onClick={() => { setWorksOpen(true); setRightHidden(false); setMoreOpen(false); }}>
                     내 작업 (보관·다시 열기)
                   </button>
@@ -363,7 +371,7 @@ export default function App() {
       <SplitLayout
         isMobile={isMobile}
         rightHidden={rightHidden}
-        left={<Preview edit={edit} selectedId={selectedId} onExamples={() => setExamples(true)} />}
+        left={<Preview edit={edit} selectedId={selectedId} />}
         right={
           <EditorPanel
             view={view}
@@ -375,7 +383,6 @@ export default function App() {
             onFocused={clearFocus}
             getStage={() => stageRef.current}
             onNew={() => void onNew()}
-            onExamples={() => setExamples(true)}
             onSelect={setSelectedId}
           />
         }
@@ -403,13 +410,6 @@ export default function App() {
             jump('menus', made.id);
             say('넣었습니다. 오른쪽에서 내용을 채우면 그대로 보입니다.');
           }}
-        />
-      )}
-
-      {examples && (
-        <ExampleViewer
-          onClose={() => setExamples(false)}
-          onStarted={() => { setExamples(false); setSelectedId(null); goStep('prepare'); say('예시 구성으로 새 상세페이지를 시작합니다.'); }}
         />
       )}
 

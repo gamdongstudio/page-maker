@@ -3,6 +3,14 @@ import { MOBILE_PREVIEW_WIDTH, SMARTSTORE_DETAIL_WIDTH } from '@/config/smartsto
 import { useProject } from '@/store/ProjectStore';
 import { DetailPage } from './DetailPage';
 import { shownMenus } from './sectionContent';
+import { Icon, type IconName } from '@/components/ui/Icon';
+
+const GUIDE: { icon: IconName; title: string; text: string }[] = [
+  { icon: 'link', title: '자료 가져오기', text: '주소를 넣거나 내용을 불러오세요.' },
+  { icon: 'wand', title: '자동 제작', text: '알맞은 구성으로 초안을 만들어줍니다.' },
+  { icon: 'pen', title: '보면서 수정', text: '미리보기를 보며 원하는 부분만 고칩니다.' },
+  { icon: 'download', title: '저장', text: '완성된 상세페이지를 저장합니다.' },
+];
 import type { PreviewEdit } from './editApi';
 
 export type PreviewMode = 'pc' | 'mobile';
@@ -12,14 +20,22 @@ export type PreviewMode = 'pc' | 'mobile';
  * 빈 흰 화면이 "고장 난 화면" 처럼 보이지 않게, 연한 뼈대와 짧은 안내만 둔다.
  * (가짜 문구를 채워 넣지 않는다. 저장 이미지와는 상관없다)
  */
-function StartGuide({ onExamples }: { onExamples?: () => void }) {
+function StartGuide() {
   return (
     <div className="startguide">
       <div className="startguide__msg">
-        <p className="startguide__title">상세페이지 미리보기</p>
-        <p className="startguide__text">오른쪽에서 자료를 입력하거나 가져오면<br />이곳에 상세페이지가 바로 만들어집니다.</p>
-        <p className="startguide__steps">① 자료 준비 → ② 자동 추천 → ③ 보면서 고치기 → ④ 저장</p>
-        {onExamples && <button type="button" className="btn btn--line" onClick={onExamples}>완성 예시 보기</button>}
+        <p className="startguide__title">처음 사용하시나요?</p>
+        <p className="startguide__text">오른쪽에서 자료를 넣으면 상세페이지가 바로 만들어집니다.</p>
+        <ol className="guide4">
+          {GUIDE.map((g, i) => (
+            <li key={g.title} className="guide4__item">
+              <span className="guide4__icon"><Icon name={g.icon} size={30} /></span>
+              <b><span className="guide4__no">{i + 1}</span>{g.title}</b>
+              <span>{g.text}</span>
+            </li>
+          ))}
+        </ol>
+        <p className="startguide__tip">자료를 넣으면 이 화면은 실제 상세페이지 미리보기로 바뀝니다.</p>
       </div>
       <div className="startguide__sk" aria-hidden="true">
         <div className="sk sk--hero" />
@@ -38,8 +54,6 @@ interface Props {
   edit?: PreviewEdit;
   /** 지금 고르고 있는 영역 — 테두리로 알려준다 */
   selectedId?: string | null;
-  /** 완성 예시 보기 (시작 안내에서) */
-  onExamples?: () => void;
 }
 
 /**
@@ -47,7 +61,7 @@ interface Props {
  * 상세페이지 본체는 실제 폭(860px 또는 390px)으로 그리고,
  * 화면에 맞게 배율만 줄여서 보여준다. (구조는 결과물과 동일)
  */
-export function Preview({ edit, selectedId, onExamples }: Props) {
+export function Preview({ edit, selectedId }: Props) {
   const { project } = useProject();
   /* 보여줄 영역이 하나도 없으면 빈 흰 화면 대신 시작 안내 (글·사진을 넣으면 바로 사라진다) */
   const blank = shownMenus(project).length === 0;
@@ -103,7 +117,7 @@ export function Preview({ edit, selectedId, onExamples }: Props) {
           style={{ transform: `scale(${scale})`, transformOrigin: 'top center', width: pageWidth }}
         >
           {blank
-            ? <StartGuide onExamples={onExamples} />
+            ? <StartGuide />
             : <DetailPage project={project} narrow={mode === 'mobile'} edit={edit} selectedId={selectedId} />}
         </div>
       </div>

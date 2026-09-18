@@ -42,6 +42,10 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
   const setEmphasis = (v: string) =>
     update((d) => { d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), emphasis: v }; }, { label: 'shoot.emphasis' });
 
+  /** 예약·문의 링크 한 칸 — 다른 매장 정보는 그대로 둔다 */
+  const setStudioKey = (k: 'talkUrl' | 'placeUrl' | 'videoUrl') => (v: string) =>
+    update((d) => { d.studio = { ...EMPTY_STUDIO, ...(d.studio ?? {}), [k]: v.trim() }; }, { label: 'studio.' + k });
+
   const setStudio = (next: StudioInfo) =>
     update((d) => {
       d.studio = { ...EMPTY_STUDIO, ...next };
@@ -100,6 +104,18 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
       <Field
         label="예약·구매 안내" value={p.contact} onChange={set('contact')}
         placeholder="예) 전화 02-000-0000 · 네이버 예약"
+      />
+      <Field
+        label="네이버 톡톡 주소" value={project.studio?.talkUrl ?? ''} onChange={setStudioKey('talkUrl')}
+        placeholder="예) https://talk.naver.com/..."
+      />
+      <Field
+        label="네이버 지도 · 스마트플레이스 주소" value={project.studio?.placeUrl ?? ''} onChange={setStudioKey('placeUrl')}
+        placeholder="예) https://naver.me/... 또는 https://map.naver.com/..."
+      />
+      <Field
+        label="YouTube / Shorts 주소" value={project.studio?.videoUrl ?? ''} onChange={setStudioKey('videoUrl')}
+        placeholder="예) https://youtu.be/... 또는 https://youtube.com/shorts/..."
       />
       <Field
         label="추가 강조내용" value={project.shoot?.emphasis ?? ''} onChange={setEmphasis}

@@ -15,6 +15,7 @@ import { Editable } from './Editable';
 import type { PreviewEdit } from './editApi';
 import { EditingContext } from './editing';
 import { shownMenus } from './sectionContent';
+import { youtubeOf } from '@/utils/youtube';
 import { cutMarkColor } from '@/services/export/exportImage';
 
 /**
@@ -344,7 +345,8 @@ function MenuBody({ menu, project, narrow, boxWidth, edit }: {
               onSave={(v) => edit?.onMenuText(menu.id, 'body', v)}
             />
           )}
-          {/* 사진관의 마지막 행동은 구매가 아니라 예약·문의다 (최대 3개) */}
+          <VideoBlock url={project.studio?.videoUrl} boxWidth={boxWidth} live={!!edit} />
+          {/* 사진관의 마지막 행동은 구매가 아니라 예약·문의다 */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: d.align === 'center' ? 'center' : d.align === 'right' ? 'flex-end' : 'flex-start' }}>
             {ctaButtons(project).map((b, i) => (
               <span
@@ -543,14 +545,47 @@ function SimpleSection({ menu, fallback, titleStyle, bodyStyle, edit }: {
   );
 }
 
-/** 예약·문의 버튼 — 있는 정보로만 만든다 (최대 3개) */
+/** 예약·문의 버튼 — 있는 정보로만 만든다. 적지 않은 링크는 버튼도 만들지 않는다 */
 function ctaButtons(p: ProjectData): { label: string }[] {
   const s = p.studio;
   const out: { label: string }[] = [];
   if (s?.bookingUrl || p.product.buyLink) out.push({ label: '네이버 예약' });
   if (s?.phone) out.push({ label: `전화 ${s.phone}` });
+  if (s?.talkUrl?.trim()) out.push({ label: '네이버 톡톡 상담하기' });
+  if (s?.placeUrl?.trim()) out.push({ label: /map\.naver/.test(s.placeUrl) ? '네이버 지도 보기' : '네이버 플레이스 보기' });
   if (s?.sns) out.push({ label: '카카오톡 문의' });
-  return out.length ? out.slice(0, 3) : [{ label: '예약·문의하기' }];
+  return out.length ? out.slice(0, 5) : [{ label: '예약·문의하기' }];
+}
+
+/**
+ * 영상 — 일반 영상은 가로(16:9) 꽉 차게, Shorts 는 세로(9:16) 작은 카드(최대 320px).
+ * 미리보기에서는 바로 재생되게. 저장 이미지(그림)에는 재생 표시만 둔다.
+ * (다른 사이트의 영상 사진은 저장 그림에 넣을 수 없어 저장이 실패한다)
+ */
+function VideoBlock({ url, boxWidth, live }: { url?: string; boxWidth: number; live: boolean }) {
+  const v = youtubeOf(url);
+  if (!v) return null;
+  const w = v.shorts ? Math.min(320, boxWidth) : boxWidth;
+  const h = Math.round(v.shorts ? (w * 16) / 9 : (w * 9) / 16);
+  const box: React.CSSProperties = { width: w, height: h, margin: '0 auto 22px', borderRadius: 14, overflow: 'hidden', background: '#000', position: 'relative' };
+  return (
+    <div style={box} data-video={v.shorts ? 'shorts' : 'wide'}>
+      {live ? (
+        <iframe
+          src={`https://www.youtube.com/embed/${v.id}`} title="영상" width={w} height={h}
+          style={{ border: 0, display: 'block' }} allow="encrypted-media; picture-in-picture" allowFullScreen
+        />
+      ) : (
+        <>
+          <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg,#2b2f36,#111318)' }} />
+          <span style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: '#fff' }}>
+            <span style={{ width: 64, height: 64, borderRadius: 999, background: '#ff0033', fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>▶</span>
+            <span style={{ fontSize: 15, opacity: .85 }}>YouTube 영상</span>
+          </span>
+        </>
+      )}
+    </div>
+  );
 }
 
 function PriceRow({ project, big = false, edit }: {

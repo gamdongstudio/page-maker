@@ -1597,3 +1597,34 @@ button,input,textarea,select{font-family:inherit}
 .top__brand{display:flex;align-items:center}
 .top__logo{display:block;height:34px;width:auto;object-fit:contain}
 @media (max-width:900px){ .top__logo{height:28px} }
+
+/* ---- 머리글: 로고 + 이름 ---- */
+.top__brand{gap:8px}
+.top__logo{height:30px}
+.top__name{font-size:18px;font-weight:800;letter-spacing:-.2px;color:var(--ink,#1a1a1a)}
+@media (max-width:900px){ .top__logo{height:26px} .top__name{font-size:15px} }
+
+/* ---- 상단 사용방법 팝업 ---- */
+.howto{
+  position:absolute;right:0;top:calc(100% + 6px);z-index:60;width:300px;
+  background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(20,28,45,.14);
+  padding:18px 18px 16px;
+}
+.howto__title{margin:0 0 10px;font-size:15px;font-weight:800}
+.howto__steps{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:7px;font-size:14px}
+.howto__steps li{display:flex;align-items:center;gap:8px}
+.howto__no{width:20px;height:20px;border-radius:999px;background:var(--brand);color:#fff;font-size:11.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+.howto__tips{background:#f6f8fb;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:var(--ink-2)}
+.howto__tips ul{margin:6px 0 0;padding-left:16px;display:grid;gap:4px}
+.howto__video{display:block;text-align:center;font-size:13.5px;font-weight:700;color:var(--brand);border:1px solid var(--line);border-radius:8px;padding:9px;text-decoration:none}
+.howto__video.is-off{color:var(--ink-3,#999);font-weight:500}
+.howto__close{position:absolute;right:8px;top:8px;border:0;background:none;color:var(--ink-3,#999);cursor:pointer;padding:4px}
+
+/* ---- 왼쪽 첫 화면: 4단계 안내 ---- */
+.startguide__msg{width:min(700px,90%);top:120px;padding:34px 30px 26px}
+.guide4{list-style:none;margin:10px 0 18px;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px}
+.guide4__item{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13.5px;color:#6b7280;line-height:1.45}
+.guide4__item b{display:flex;align-items:center;gap:6px;font-size:15px;color:#2a2f37}
+.guide4__icon{width:60px;height:60px;border-radius:14px;background:#eef3ff;color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:4px}
+.guide4__no{width:20px;height:20px;border-radius:999px;background:var(--brand);color:#fff;font-size:11.5px;display:inline-flex;align-items:center;justify-content:center}
+.startguide__tip{margin:0;padding-top:14px;border-top:1px solid #eef0f3;font-size:13.5px;color:#8a919b}
