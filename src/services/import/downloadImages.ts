@@ -70,8 +70,6 @@ function keepPlaceImage(image: ImportResult['images'][number]): boolean {
   const alt = String(image.alt || '');
   if (/(pup-review|review-phinf|visitor|profile|avatar|emoticon|badge|icon|sprite)/i.test(url)) return false;
   if (/(리뷰|방문자|프로필|광고|가격표|이벤트|할인|쿠폰|프로모션)/.test(alt)) return false;
-  if (image.width > 0 && image.height > 0 && Math.min(image.width, image.height) < 420) return false;
-  if (image.width > 0 && image.height > 0 && (image.width / image.height > 3.2 || image.height / image.width > 3.2)) return false;
   return true;
 }
 
