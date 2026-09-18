@@ -317,16 +317,22 @@ export async function collectFromUrl(raw: string): Promise<ImportResult | Import
    */
   if (!onPublicAddress()) {
     try {
-      const local = await fetch('/api/import-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: checked.url }),
-      });
-      if ((local.headers.get('content-type') ?? '').includes('application/json')) {
-        const data = await local.json() as ImportResult | ImportFail;
-        const looksRight = (data?.ok === true && typeof (data as ImportResult).text === 'string')
-          || (data?.ok === false && typeof (data as ImportFail).reason === 'string');
-        if (looksRight && data.ok) return data;
+      const health = await fetch('/api/health');
+      const healthJson = (health.headers.get('content-type') ?? '').includes('application/json')
+        ? await health.json() as { service?: string }
+        : {};
+      if (healthJson.service === 'saypagemaker-collector') {
+        const local = await fetch('/api/import-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: checked.url }),
+        });
+        if ((local.headers.get('content-type') ?? '').includes('application/json')) {
+          const data = await local.json() as ImportResult | ImportFail;
+          const looksRight = (data?.ok === true && typeof (data as ImportResult).text === 'string')
+            || (data?.ok === false && typeof (data as ImportFail).reason === 'string');
+          if (looksRight) return data;
+        }
       }
     } catch {
       /* 로컬 collector가 안 켜져 있으면 아래 PM Connect 경로로 그대로 간다. */
