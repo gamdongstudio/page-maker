@@ -36,7 +36,17 @@ async function hardenContext(context) {
  * 로그인 세션을 쓰지 않는다. 공개된 페이지만 읽는다.
  */
 export async function openScrapeContext() {
-  const browser = await chromium.launch({ headless: true, args: LAUNCH_ARGS });
+  let browser;
+  try {
+    /* 사용자 컴퓨터에 이미 있는 Chrome을 먼저 쓴다 — 별도 브라우저 다운로드를 줄인다. */
+    browser = await chromium.launch({ channel: 'chrome', headless: true, args: LAUNCH_ARGS });
+  } catch {
+    try {
+      browser = await chromium.launch({ channel: 'msedge', headless: true, args: LAUNCH_ARGS });
+    } catch {
+      browser = await chromium.launch({ headless: true, args: LAUNCH_ARGS });
+    }
+  }
   const context = await browser.newContext(CONTEXT_OPTIONS);
   await hardenContext(context);
   return {
