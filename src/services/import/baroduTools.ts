@@ -120,7 +120,7 @@ let cached: Found | null = null;
 function markSeen(): void {
   try { localStorage.setItem(BARODU_TOOLS.seenKey, '1'); } catch { /* 저장 못 해도 괜찮다 */ }
 }
-function wasSeenBefore(): boolean {
+export function wasSeenBefore(): boolean {
   try { return localStorage.getItem(BARODU_TOOLS.seenKey) === '1'; } catch { return false; }
 }
 
