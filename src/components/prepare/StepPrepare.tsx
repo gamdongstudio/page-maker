@@ -182,7 +182,12 @@ export function StepPrepare() {
       setRow(row.id, { phase: '정리하는 중…' });
       await merge(
         SOURCE_LABEL[res.sourceType],
-        [res.title, res.description, res.text].filter(Boolean).join('\n'),
+        [
+          res.title,
+          res.description,
+          res.text,
+          res.sourceType === 'naver-place' ? `네이버 플레이스: ${checked.url}` : '',
+        ].filter(Boolean).join('\n'),
         photos,
         failed,
         { ...row, url: checked.url },
