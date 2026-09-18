@@ -122,6 +122,8 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
         placeholder="예) 부모님 환갑 기념 · 주말 예약 가능"
       />
 
+      {mode === 'edit' && <GptImageTools project={project} />}
+
       <section className={'foldbox' + (studioOpen ? ' is-open' : '')}>
         <button className="foldbox__head" onClick={() => setStudioOpen((v) => !v)} aria-expanded={studioOpen}>
           <span>사진관·매장 정보 {project.studio?.name ? `· ${project.studio.name}` : '(선택)'}</span>
@@ -135,6 +137,71 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
       </section>
     </div>
   );
+}
+
+function GptImageTools({ project }: { project: ReturnType<typeof useProject>['project'] }) {
+  const [kind, setKind] = useState<'price' | 'event' | null>(null);
+  const [copied, setCopied] = useState(false);
+  const prompt = kind ? imagePrompt(project, kind) : '';
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(prompt);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  };
+
+  return (
+    <section className="gpttools">
+      <h4>GPT 이미지 도구</h4>
+      <p className="field__hint">현재 입력된 상품·가격·이벤트 정보로 요청문만 만듭니다.</p>
+      <div className="row2">
+        <button className="btn btn--line" onClick={() => setKind('price')}>GPT로 가격표 만들기</button>
+        <button className="btn btn--line" onClick={() => setKind('event')}>GPT로 이벤트 이미지 만들기</button>
+      </div>
+      {kind && (
+        <div className="stack">
+          <textarea className="field__input" rows={9} value={prompt} readOnly />
+          <div className="row2">
+            <button className="btn btn--main" onClick={() => void copy()}>{copied ? '복사됨' : '프롬프트 복사'}</button>
+            <button className="btn btn--line" onClick={() => window.open('https://chatgpt.com/', '_blank', 'noopener,noreferrer')}>
+              ChatGPT 열기
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function imagePrompt(p: ReturnType<typeof useProject>['project'], kind: 'price' | 'event'): string {
+  const studio = p.studio?.name || p.product.brand || '(사진관명 확인 필요)';
+  const product = p.product.name || p.shoot?.productName || '(상품명 확인 필요)';
+  const common = [
+    `사진관명: ${studio}`,
+    `실제 상품명: ${product}`,
+    `정상가: ${p.pricing?.listPrice || p.product.listPrice || '(확인 필요)'}`,
+    `판매가/이벤트가: ${p.pricing?.eventPrice || p.product.salePrice || '(확인 필요)'}`,
+    `구성: ${p.pricing?.includes || p.product.benefits || '(확인 필요)'}`,
+  ].join('\n');
+
+  if (kind === 'price') return [
+    '아래 확인된 데이터만 사용해 사진관 가격표 이미지를 만들어줘.',
+    '없는 가격이나 구성은 추측하지 말고, “기타” 같은 임시 상품명도 쓰지 마.',
+    '상세페이지용 세로형, 한글 가독성 우선, 과한 장식 없이 고급스럽게 구성해줘.',
+    '',
+    common,
+  ].join('\n');
+
+  return [
+    '아래 확인된 데이터만 사용해 사진관 이벤트 이미지를 만들어줘.',
+    '일반 공지는 넣지 말고 실제 이벤트·할인·쿠폰·프로모션 내용만 사용해줘.',
+    '상세페이지용 세로형, 혜택과 기간이 한눈에 보이게 구성해줘.',
+    '',
+    common,
+    `이벤트명: ${p.event?.title || '(확인 필요)'}`,
+    `이벤트 기간: ${p.event?.period || '(확인 필요)'}`,
+    `이벤트 내용: ${p.event?.body || p.perks?.map((x) => `${x.title} ${x.body}`).join(' / ') || '(확인 필요)'}`,
+  ].join('\n');
 }
 
 /**
