@@ -299,9 +299,8 @@ export default function App() {
     <div className="app">
       <header className="top">
         <div className="top__brand">
-          {/* 공식 로고 + 이름 */}
-          <img className="top__logo" src="/pagemaker-logo.png" alt="" />
-          <span className="top__name">Page Maker</span>
+          {/* 공식 로고 (심볼 + Page Maker 글자, 원본에서 바깥 여백만 잘라 비율 그대로) */}
+          <img className="top__logo" src="/pagemaker-logo.png" alt="Page Maker" width={462} height={108} />
         </div>
 
         <div className="top__title" title={project.title}>{project.title}</div>
