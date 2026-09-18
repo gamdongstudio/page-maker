@@ -79,7 +79,7 @@ export function currentValue(p: ProjectData, key: string): string {
     case 'shootingFields': return p.product.category ?? '';
     case 'features': return p.product.benefits ?? '';
     case 'philosophy': return p.shoot?.emphasis ?? '';
-    case 'productName': return p.shoot?.productName ?? '';
+    case 'productName': return p.shoot?.productName || p.product.name || '';
     case 'listPrice': return p.product.listPrice;
     case 'eventPrice': return p.product.salePrice;
     case 'people': return p.pricing?.people ?? '';
@@ -172,6 +172,7 @@ export function applyChange(d: ProjectData, ch: FieldChange, how: 'fill' | 'repl
       break;
     case 'productName':
       d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), productName: value };
+      if (!d.product.name.trim() || /^(기타|상품|촬영상품)$/i.test(d.product.name.trim())) d.product.name = value;
       break;
     case 'listPrice':
       pricing();
