@@ -362,7 +362,7 @@ export default function App() {
       <SplitLayout
         isMobile={isMobile}
         rightHidden={rightHidden}
-        left={<Preview edit={edit} selectedId={selectedId} />}
+        left={<Preview edit={edit} selectedId={selectedId} onExamples={() => setExamples(true)} />}
         right={
           <EditorPanel
             view={view}

@@ -248,7 +248,6 @@ export function StepPrepare({ onExamples }: { onExamples?: () => void }) {
       <section className="box">
         <h3 className="box__title">가지고 있는 페이지가 있다면 주소를 넣어주세요.</h3>
         <p className="box__hint">글과 사진을 찾아 정리해드립니다.</p>
-        <p className="box__hint">주소가 없으면 아래 내용을 직접 입력하셔도 됩니다.</p>
 
         <div className="srclist">
           {draft.map((row, i) => {
@@ -286,11 +285,6 @@ export function StepPrepare({ onExamples }: { onExamples?: () => void }) {
                 {st?.error && (
                   <div className="note note--warn">
                     {st.error}
-                    {!st.offline && (
-                      <div className="importerr__btns">
-                        <button className="btn btn--line" onClick={openPaste}>내용 붙여넣기</button>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -302,7 +296,7 @@ export function StepPrepare({ onExamples }: { onExamples?: () => void }) {
           <button className="btn btn--main" onClick={() => void fetchAll()} disabled={busy}>
             {busy ? '가져오는 중…' : '글과 사진 가져오기'}
           </button>
-          <button className="btn btn--line" onClick={() => setDraft((prev) => [...prev, { id: uid('src'), url: '' }])} disabled={busy}>
+          <button className="btn btn--line srcacts__add" onClick={() => setDraft((prev) => [...prev, { id: uid('src'), url: '' }])} disabled={busy}>
             + 다른 주소 추가
           </button>
           {tools?.state === 'connected' && <span className="srcready">✓ 네이버 가져오기 준비됨</span>}
@@ -312,9 +306,12 @@ export function StepPrepare({ onExamples }: { onExamples?: () => void }) {
           <ConnectHelp status={tools} checking={checking} onRecheck={() => void recheck()} onPaste={openPaste} />
         )}
 
-        <button className="linkbtn srcpaste" onClick={() => (pasteOpen ? setPasteOpen(false) : openPaste())}>
-          {pasteOpen ? '내용 붙여넣기 닫기' : '주소 대신 글을 붙여넣을래요 (내용 붙여넣기)'}
-        </button>
+        <p className="srcpaste">
+          주소가 없나요?{' '}
+          <button className="linkbtn" onClick={() => (pasteOpen ? setPasteOpen(false) : openPaste())}>
+            {pasteOpen ? '붙여넣기 닫기' : '내용 붙여넣기'}
+          </button>
+        </p>
 
         {pasteOpen && (
           <div className="stack pastebox">
@@ -333,6 +330,7 @@ export function StepPrepare({ onExamples }: { onExamples?: () => void }) {
             <p className="field__hint">찾은 내용은 아래 칸에 들어갑니다. 이미 적어두신 내용은 바꾸기 전에 여쭤봅니다.</p>
           </div>
         )}
+        <p className="srcdirect">또는 아래 내용을 직접 입력하세요.</p>
       </section>
 
       {/* ---------------- 가져온 결과 ---------------- */}

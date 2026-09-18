@@ -46,7 +46,7 @@ export function StepLead({ step }: { step: FlowStep }) {
       </h2>
       <p className="steplead__text">{info.lead}</p>
       <details className="steplead__help">
-        <summary>이 단계가 어려우신가요?</summary>
+        <summary>도움이 필요하신가요?</summary>
         <ul>
           {info.help.map((h, i) => <li key={i}>{h}</li>)}
         </ul>
