@@ -175,14 +175,14 @@ export function StepPrepare() {
       }
 
       setRow(row.id, { phase: '사진 정리 중…' });
-      const { files, failed } = await downloadImages(res, 20);
+      const { files, failed } = await downloadImages(res, res.sourceType === 'naver-place' ? 10 : 20);
       const read = await readPhotoFiles(files, photoSourceOf(res.sourceType));
       const photos = await reviewPhotos(read, latest.current.photos);
 
       setRow(row.id, { phase: '정리하는 중…' });
       await merge(
         SOURCE_LABEL[res.sourceType],
-        [res.title, res.description, res.text].filter(Boolean).join('\n'),
+        placeSourceText(res),
         photos,
         failed,
         { ...row, url: checked.url },
@@ -383,3 +383,32 @@ export function StepPrepare() {
     </div>
   );
 }
+
+/**
+ * 예전 Claude/GPT 성공본의 스마트플레이스 구조화 텍스트.
+ * 파서는 이 형식을 보고 소개·촬영분야·실제 상품·이벤트를 기존 필드에 정확히 연결한다.
+ */
+function placeSourceText(res: import('@/services/import/baroduTools').ImportResult): string {
+  if (!res.place) return [res.title, res.description, res.text].filter(Boolean).join('\n');
+
+  const cleanTitle = res.title
+    .replace(/[\u0000-\u001f]/g, '')
+    .replace(/\s*:\s*네이버.*$/i, '')
+    .trim();
+
+  return [
+    cleanTitle,
+    res.description,
+    res.place.intro ? `소개: ${res.place.intro}` : '',
+    res.place.shootingFields ? `촬영분야: ${res.place.shootingFields}` : '',
+    res.place.features ? `주요특징: ${res.place.features}` : '',
+    res.place.philosophy ? `촬영철학: ${res.place.philosophy}` : '',
+    res.place.info ? `[정보]\n${res.place.info}` : '',
+    res.place.products ? `[상품/예약]\n${res.place.products}` : '',
+    res.place.news ? `[이벤트·혜택]\n혜택:\n${res.place.news}` : '',
+    res.place.placeUrl ? `네이버 플레이스: ${res.place.placeUrl}` : '',
+    res.place.bookingUrl ? `예약링크: ${res.place.bookingUrl}` : '',
+    res.place.talkUrl ? `네이버 톡톡: ${res.place.talkUrl}` : '',
+  ].filter(Boolean).join('\n');
+}
+
