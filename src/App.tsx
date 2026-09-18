@@ -299,7 +299,8 @@ export default function App() {
     <div className="app">
       <header className="top">
         <div className="top__brand">
-          <b>PageMaker</b> <span className="top__by">by BARODU</span>
+          {/* 공식 로고 (원본에서 바깥 여백만 잘라 비율 그대로 줄인 것) */}
+          <img className="top__logo" src="/pagemaker-logo.png" alt="PageMaker" width={257} height={240} />
         </div>
 
         <div className="top__title" title={project.title}>{project.title}</div>

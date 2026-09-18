@@ -1592,3 +1592,8 @@ button,input,textarea,select{font-family:inherit}
 .startguide__text{margin:0 0 14px;font-size:16px;line-height:1.6;color:#5f6670}
 .startguide__steps{margin:0 0 18px;font-size:14px;color:#8a919b}
 .startguide__msg .btn{font-size:15px;padding:10px 20px}
+
+/* ---- 머리글 공식 로고 — 비율 그대로 높이만 맞춘다 ---- */
+.top__brand{display:flex;align-items:center}
+.top__logo{display:block;height:34px;width:auto;object-fit:contain}
+@media (max-width:900px){ .top__logo{height:28px} }
