@@ -28,7 +28,10 @@ export interface FieldChange {
 }
 
 /** 여러 줄로 이어 붙일 수 있는 항목 */
-const TEXT_KEYS = new Set(['includes', 'extras', 'otherPrices', 'perks', 'concepts']);
+const TEXT_KEYS = new Set([
+  'intro', 'shootingFields', 'features', 'philosophy',
+  'includes', 'extras', 'otherPrices', 'perks', 'concepts',
+]);
 
 /** 화면에 보이는 이름 — ① 입력칸 이름과 맞춘다 */
 const LABEL: Record<string, string> = {
@@ -39,7 +42,13 @@ const LABEL: Record<string, string> = {
   hours: '영업시간',
   offDays: '휴무일',
   bookingUrl: '예약 링크',
-  productName: '상품 종류',
+  placeUrl: '네이버 플레이스',
+  talkUrl: '네이버 톡톡',
+  intro: '사진관 소개',
+  shootingFields: '촬영분야',
+  features: '주요 특징',
+  philosophy: '촬영철학',
+  productName: '실제 상품명',
   listPrice: '정상가',
   eventPrice: '판매가',
   otherPrices: '그 밖의 가격',
@@ -65,7 +74,13 @@ export function currentValue(p: ProjectData, key: string): string {
     case 'hours': return s?.hours ?? '';
     case 'offDays': return s?.offDays ?? '';
     case 'bookingUrl': return s?.bookingUrl ?? '';
-    case 'productName': return p.shoot?.productName ?? '';
+    case 'placeUrl': return s?.placeUrl ?? '';
+    case 'talkUrl': return s?.talkUrl ?? '';
+    case 'intro': return s?.intro ?? '';
+    case 'shootingFields': return p.product.category ?? '';
+    case 'features': return p.product.benefits ?? '';
+    case 'philosophy': return p.shoot?.emphasis || p.product.tagline || '';
+    case 'productName': return p.product.name || p.shoot?.productName || '';
     case 'listPrice': return p.product.listPrice;
     case 'eventPrice': return p.product.salePrice;
     case 'people': return p.pricing?.people ?? '';
@@ -87,8 +102,16 @@ export function reviewFields(fields: ReadField[], p: ProjectData): { fill: Field
   fields.forEach((f) => {
     const incoming = f.value.trim();
     if (!incoming || !(f.key in LABEL)) return;
-    const current = currentValue(p, f.key).trim();
+    let current = currentValue(p, f.key).trim();
     const text = TEXT_KEYS.has(f.key);
+
+    /*
+     * '가족사진' 같은 촬영분야/기본칩은 실제 상품명이 아니다.
+     * 스마트플레이스에서 '가족사진할인이벤트중' 같은 정확한 상품명을 찾으면
+     * 이 기본값 때문에 충돌로 막히지 않게 빈 값처럼 취급한다.
+     */
+    if (f.key === 'productName' && current && isGenericProductName(current, p)) current = '';
+
     const change: FieldChange = { key: f.key, label: LABEL[f.key], current, incoming, text };
 
     if (!current) { fill.push(change); return; }
@@ -141,8 +164,25 @@ export function applyChange(d: ProjectData, ch: FieldChange, how: 'fill' | 'repl
     case 'hours': studio().hours = value; break;
     case 'offDays': studio().offDays = value; break;
     case 'bookingUrl': studio().bookingUrl = value; break;
+    case 'placeUrl': studio().placeUrl = value; break;
+    case 'talkUrl': studio().talkUrl = value; break;
+    case 'intro':
+      studio().intro = value;
+      d.product.description = value;
+      break;
+    case 'shootingFields':
+      d.product.category = value;
+      break;
+    case 'features':
+      d.product.benefits = value;
+      break;
+    case 'philosophy':
+      d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), emphasis: value };
+      d.product.tagline = value;
+      break;
     case 'productName':
       d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), productName: value };
+      d.product.name = value;
       break;
     case 'listPrice':
       pricing();
@@ -163,12 +203,18 @@ export function applyChange(d: ProjectData, ch: FieldChange, how: 'fill' | 'repl
         : [...new Set([...lines(pr.etcExtra), ...lines(ch.incoming)])].join('\n');
       break;
     }
-    case 'perks':
-      d.perks = lines(value).map((line) => {
+    case 'perks': {
+      const perkLines = lines(value);
+      d.perks = perkLines.map((line) => {
         const [title, ...rest] = line.split('|');
         return { id: uid('perk'), title: title.trim(), body: rest.join('|').trim(), photoId: '', icon: '' };
       });
+      d.event = { ...EMPTY_EVENT, ...(d.event ?? {}) };
+      const eventTitle = perkLines.find((line) => /(이벤트|할인|쿠폰|프로모션|특가|혜택|증정)/.test(line));
+      if (eventTitle) d.event.title = eventTitle;
+      d.event.body = perkLines.join('\n');
       break;
+    }
     case 'eventPeriod':
       d.event = { ...EMPTY_EVENT, ...(d.event ?? {}), period: value };
       if (!d.event.title) d.event.title = '이벤트';
@@ -192,9 +238,25 @@ export function applyChange(d: ProjectData, ch: FieldChange, how: 'fill' | 'repl
     }
   }
 
-  /* 예약·문의 안내가 비어 있으면 전화·예약 링크로 채운다 */
-  if ((ch.key === 'phone' || ch.key === 'bookingUrl') && !d.product.contact.trim()) {
+  /* 성공본과 동일하게 문의는 전화 + 실제 톡톡, 이동 링크는 예약 → 플레이스 순서로 쓴다. */
+  if (['phone', 'bookingUrl', 'talkUrl', 'placeUrl'].includes(ch.key)) {
     const s = d.studio;
-    d.product.contact = [s?.phone && `전화 ${s.phone}`, s?.bookingUrl].filter(Boolean).join(' · ');
+    if (!d.product.contact.trim() || ch.key === 'phone' || ch.key === 'talkUrl') {
+      d.product.contact = [s?.phone && `전화 ${s.phone}`, s?.talkUrl].filter(Boolean).join(' · ');
+    }
+    const destination = s?.bookingUrl || s?.placeUrl;
+    if (destination) d.product.buyLink = destination;
   }
+}
+
+function isGenericProductName(value: string, p: ProjectData): boolean {
+  const v = value.trim();
+  if (!v) return true;
+  const builtins = new Set([
+    '가족사진', '프로필사진', '증명사진', '취업사진', '아기사진',
+    '스냅사진', '복원사진', '장수사진', '반려동물사진',
+  ]);
+  return builtins.has(v)
+    || v === p.product.category.trim()
+    || v === (p.shoot?.productName ?? '').trim();
 }
