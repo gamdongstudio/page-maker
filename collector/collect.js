@@ -130,8 +130,6 @@ function readPlacePhotos() {
 
     const w = img.naturalWidth || img.width || 0;
     const h = img.naturalHeight || img.height || 0;
-    if (w > 0 && w < 420) continue;
-    if (h > 0 && h < 420) continue;
 
     const key = url.split('?')[0];
     if (seen.has(key)) continue;
