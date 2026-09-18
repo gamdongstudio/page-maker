@@ -240,7 +240,7 @@ function MenuBody({ menu, project, narrow, boxWidth, edit }: {
               on={!!edit}
               value={p.brand}
               placeholder="사진관명"
-              style={{ margin: '0 0 10px', color: d.primary, fontSize: d.bodySize - 2, letterSpacing: 1 }}
+              style={{ ...titleStyle, margin: '0 0 10px', fontSize: d.bodySize, letterSpacing: 0 }}
               onSave={(v) => edit?.onProduct('brand', v)}
             />
           )}
