@@ -29,7 +29,11 @@ app.use(express.json({ limit: '1mb' }));
 
 /* 이 컴퓨터 안에서만 쓴다 */
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5180');
+  const origin = String(req.headers.origin ?? '');
+  if (/^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/.test(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.end();
   return next();
@@ -44,6 +48,30 @@ app.use((req, res, next) => {
  * (실제로 다른 프로그램이 이 자리를 차지한 일이 있었다)
  */
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: SERVICE }));
+
+/**
+ * 네이버 업체 사진 다운로드 중 브라우저가 직접 받지 못하는 경우를 위한 읽기 전용 중계.
+ * 예전 성공본에서 실제 사진 다운로드 실패를 해결한 경로다.
+ */
+app.get('/api/image', async (req, res) => {
+  try {
+    const url = new URL(String(req.query.url ?? ''));
+    if (url.protocol !== 'https:' || !/(^|\.)pstatic\.net$/.test(url.hostname)) return res.sendStatus(400);
+
+    const source = await fetch(url, {
+      headers: { referer: 'https://m.place.naver.com/' },
+    });
+    if (!source.ok) return res.sendStatus(source.status);
+
+    const type = source.headers.get('content-type') || '';
+    if (!type.startsWith('image/')) return res.sendStatus(415);
+
+    res.type(type).send(Buffer.from(await source.arrayBuffer()));
+  } catch {
+    res.sendStatus(400);
+  }
+});
+
 
 app.post('/api/import-url', async (req, res) => {
   const url = String(req.body?.url ?? '').trim();
