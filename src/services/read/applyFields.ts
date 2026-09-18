@@ -35,7 +35,10 @@ export function applyReadFields(d: ProjectData, fields: ReadField[]): StudioInfo
 
   /* --- 무엇을 만들지 --- */
   d.shoot = { ...(d.shoot ?? EMPTY_BRIEF) };
-  if (get('productName')) d.shoot.productName = get('productName');
+  if (get('productName')) {
+    d.shoot.productName = get('productName');
+    if (!d.product.name.trim() || /^(기타|상품|촬영상품)$/i.test(d.product.name.trim())) d.product.name = get('productName');
+  }
   if (get('area')) d.shoot.area = get('area');
   if (get('philosophy')) d.shoot.emphasis = get('philosophy');
   if (get('shootingFields')) d.product.category = get('shootingFields');
