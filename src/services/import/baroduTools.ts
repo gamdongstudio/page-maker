@@ -297,6 +297,27 @@ export async function collectFromUrl(raw: string): Promise<ImportResult | Import
   const checked = checkUrl(raw);
   if (!checked.ok) return { ok: false, reason: checked.reason };
 
+  /*
+   * 로컬 개발에서는 이 프로젝트에 같이 들어 있는 collector를 먼저 쓴다.
+   * 그래야 스마트플레이스 개선 코드를 확인할 때 설치돼 있는 예전 PM Connect가
+   * 새 수집 결과를 덮어쓰지 않는다. 공개 배포에서는 기존 PM Connect 방식 그대로다.
+   */
+  if (!onPublicAddress()) {
+    try {
+      const local = await fetch('/api/import-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: checked.url }),
+      });
+      if ((local.headers.get('content-type') ?? '').includes('application/json')) {
+        const data = await local.json() as ImportResult | ImportFail;
+        if (data?.ok === true && typeof (data as ImportResult).text === 'string') return data;
+      }
+    } catch {
+      /* 로컬 collector가 안 켜져 있으면 기존 PM Connect로 자동 폴백한다. */
+    }
+  }
+
   const found = await find();
   if (!found) {
     return {
