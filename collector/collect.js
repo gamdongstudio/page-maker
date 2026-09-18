@@ -80,12 +80,24 @@ function readPage() {
     clean(document.querySelector(`meta[name="${name}"]`)?.content
       || document.querySelector(`meta[property="og:${name}"]`)?.content || '');
 
+  /* 스마트플레이스의 톡톡·예약·홈페이지처럼 실제로 존재하는 링크만 읽는다. */
+  const links = [];
+  for (const a of document.querySelectorAll('a[href]')) {
+    const href = a.href || '';
+    if (!/^https?:/i.test(href)) continue;
+    const label = clean(a.innerText || a.getAttribute('aria-label') || a.title || '');
+    if (!label && !/(talk\.naver\.com|booking\.naver\.com|map\.naver\.com|place\.naver\.com)/i.test(href)) continue;
+    links.push({ label, href });
+    if (links.length >= 80) break;
+  }
+
   return {
     title: clean(document.title),
     description: meta('description'),
     ogTitle: meta('title'),
     text,
     images,
+    links,
   };
 }
 
@@ -125,36 +137,96 @@ const EXTRACTORS = {
    * 안 되면 읽은 척하지 않고 그대로 알린다.
    */
   'naver-place': async (page, url) => {
-    let target = url;
-
-    /* 짧은 주소(naver.me)는 한 번 열어 실제 주소를 알아낸다 */
-    if (/naver\.me/.test(url)) {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 }).catch(() => {});
-      await sleep(1500);
-      target = page.url();
+    /*
+     * 스마트플레이스는 홈 한 화면만 읽지 않는다.
+     * 정보·소식·예약·사진을 각각 읽어 합치되, 사진은 '업체' 사진을 우선한다.
+     * 리뷰 사진/프로필 아이콘/배너는 기본 제외한다.
+     */
+    const { id, canonical } = await resolvePlace(page, url);
+    if (!id) {
+      const got = await page.evaluate(readPage).catch(() => null);
+      return got ? { ...got, unreadable: isMapChromeOnly(got.text) } : {
+        title: '', description: '', ogTitle: '', text: '', images: [], links: [], unreadable: true,
+      };
     }
 
-    /* 주소에서 가게 번호를 뽑아 가게 화면으로 바꾼다 */
-    const id = target.match(/place\/(\d+)/)?.[1];
-    if (id) target = `https://pcmap.place.naver.com/place/${id}/home`;
+    const tabs = [
+      ['홈', 'home'],
+      ['정보', 'information'],
+      ['소식', 'feed'],
+      ['예약', 'booking'],
+    ];
 
-    await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 25000 });
-    await sleep(2500);
+    const chunks = [];
+    const allLinks = [];
+    let title = '';
+    let description = '';
+    let homeImages = [];
 
-    /* 내용이 iframe(entryIframe) 안에 있는 경우가 있다 */
-    const frame = page.frames().find((f) => /entryIframe/.test(f.name() || ''));
-    const where = frame ?? page;
+    for (const [label, path] of tabs) {
+      const target = `https://pcmap.place.naver.com/place/${id}/${path}`;
+      try {
+        await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 25000 });
+        await sleep(path === 'home' ? 2200 : 1600);
+        const frame = page.frames().find((f) => /entryIframe/.test(f.name() || ''));
+        const where = frame ?? page;
+        if (path === 'home' || path === 'information') await expandHours(where);
+        if (path === 'feed' || path === 'booking') await slowScroll(where, 4);
 
-    /* 영업시간은 접혀 있다 — 펼쳐야 요일별 시간이 보인다. 안 되면 그냥 넘어간다 */
-    await expandHours(where);
-
-    const got = await where.evaluate(readPage);
-
-    /* 지도 메뉴 글자만 왔는지 본다 — 그러면 못 읽은 것이다 */
-    if (isMapChromeOnly(got.text)) {
-      return { ...got, text: '', images: [], unreadable: true };
+        const got = await where.evaluate(readPage);
+        if (!title) title = got.ogTitle || got.title || '';
+        if (!description) description = got.description || '';
+        if (got.text && !isMapChromeOnly(got.text)) chunks.push(`[${label}]\n${got.text}`);
+        if (Array.isArray(got.links)) allLinks.push(...got.links);
+        if (path === 'home') homeImages = got.images || [];
+      } catch {
+        /* 탭 하나를 못 읽어도 나머지는 계속한다. */
+      }
     }
-    return got;
+
+    /* 사진 탭은 업체 사진을 우선해서 읽고, 충분히 큰 원본만 남긴다. */
+    let businessImages = [];
+    try {
+      await page.goto(`https://pcmap.place.naver.com/place/${id}/photo`, {
+        waitUntil: 'domcontentloaded', timeout: 25000,
+      });
+      await sleep(1800);
+      const frame = page.frames().find((f) => /entryIframe/.test(f.name() || ''));
+      const where = frame ?? page;
+
+      /* '업체' 필터가 있으면 그 필터만 누른다. 리뷰/방문자 탭은 누르지 않는다. */
+      try {
+        const owner = where.getByText('업체', { exact: true }).first();
+        await owner.click({ timeout: 2500 });
+        await sleep(1000);
+      } catch { /* 필터가 없으면 현재 사진 탭을 그대로 읽는다. */ }
+
+      await slowScroll(where, 8);
+      const photo = await where.evaluate(readPage);
+      businessImages = (photo.images || []).filter(isBusinessPhoto);
+      if (Array.isArray(photo.links)) allLinks.push(...photo.links);
+    } catch {
+      businessImages = [];
+    }
+
+    const images = uniqueImages(
+      businessImages.length ? businessImages : (homeImages || []).filter(isBusinessPhoto),
+    ).slice(0, 40);
+
+    /* 실제 존재하는 공개 링크만 글 끝에 붙여 파서가 기존 필드에 넣을 수 있게 한다. */
+    const linkLines = placeLinkLines(allLinks, canonical);
+    if (linkLines.length) chunks.push(`[링크]\n${linkLines.join('\n')}`);
+
+    const text = chunks.join('\n\n').trim();
+    return {
+      title,
+      description,
+      ogTitle: title,
+      text,
+      images,
+      links: allLinks,
+      unreadable: !text && images.length === 0,
+    };
   },
 
   /** 일반 홈페이지 */
@@ -167,6 +239,88 @@ const EXTRACTORS = {
 };
 
 /* ------------------------------------------------------------------ */
+
+/**
+ * 스마트플레이스 주소에서 업체 번호를 찾는다.
+ * naver.me 는 실제 주소까지 한 번 따라간다.
+ */
+async function resolvePlace(page, url) {
+  let target = url;
+  if (/naver\.me/i.test(target)) {
+    try {
+      await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 25000 });
+      await sleep(1200);
+      target = page.url();
+    } catch { /* 아래에서 원래 주소도 다시 본다. */ }
+  }
+
+  let id = target.match(/place\/(\d+)/)?.[1]
+    || target.match(/[?&]placeId=(\d+)/i)?.[1]
+    || '';
+
+  /* 검색 결과 화면이라면 entryIframe 주소에서도 번호를 찾는다. */
+  if (!id) {
+    try {
+      const src = await page.evaluate(() =>
+        document.querySelector('#entryIframe')?.getAttribute('src') || '',
+      );
+      id = src.match(/place\/(\d+)/)?.[1] || '';
+    } catch { /* 못 찾으면 빈 값 */ }
+  }
+
+  return {
+    id,
+    canonical: id ? `https://map.naver.com/p/entry/place/${id}` : target,
+  };
+}
+
+/** 리뷰/프로필/광고 이미지를 빼고 업체 사진으로 볼 수 있는 것만 남긴다. */
+function isBusinessPhoto(im) {
+  const url = String(im?.url || '');
+  const alt = String(im?.alt || '');
+  const w = Number(im?.width || 0);
+  const h = Number(im?.height || 0);
+
+  if (!/^https?:/i.test(url)) return false;
+  if (/(pup-review|review-phinf|visitor|profile|avatar|emoticon|badge|icon|logo|sprite)/i.test(url)) return false;
+  if (/(리뷰|방문자|프로필|광고)/.test(alt)) return false;
+  if (w && h && Math.min(w, h) < 420) return false;
+  if (w && h && (w / h > 3.2 || h / w > 3.2)) return false;
+  return true;
+}
+
+function uniqueImages(images) {
+  const seen = new Set();
+  const out = [];
+  for (const im of images || []) {
+    const key = String(im?.url || '').replace(/[?&](?:type|w|h|width|height)=[^&]*/gi, '').split('?')[0];
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(im);
+  }
+  return out;
+}
+
+/**
+ * 실제 발견한 링크만 전달한다.
+ * 톡톡 링크가 없으면 절대 임의로 만들지 않는다.
+ */
+function placeLinkLines(links, canonical) {
+  const out = [];
+  const add = (label, href) => {
+    if (!href || out.some((x) => x.endsWith(href))) return;
+    out.push(`${label}: ${href}`);
+  };
+
+  add('네이버 플레이스', canonical);
+  for (const x of links || []) {
+    const href = String(x?.href || '');
+    const label = String(x?.label || '');
+    if (/talk\.naver\.com/i.test(href)) add('네이버 톡톡', href);
+    else if (/booking\.naver\.com/i.test(href) || /예약/.test(label)) add('예약링크', href);
+  }
+  return out;
+}
 
 /**
  * 조금씩 나눠 내려간다.
