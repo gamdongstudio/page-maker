@@ -18,7 +18,9 @@ export function photoSourceOf(t: SourceType): PhotoSource {
 }
 
 export async function downloadImages(got: ImportResult, max = 20): Promise<{ files: File[]; failed: number }> {
-  const urls = got.images.map(photoSrc);
+  const urls = got.images
+    .filter((im) => got.sourceType !== 'naver-place' || keepPlaceImage(im))
+    .map((im) => localImageSrc(got.sourceType, im));
   const files: File[] = [];
   const seen = new Set<string>();
   let tried = 0;
@@ -46,6 +48,35 @@ export async function downloadImages(got: ImportResult, max = 20): Promise<{ fil
     }
   }
   return { files, failed: tried - files.length };
+}
+
+
+function localImageSrc(source: SourceType, image: ImportResult['images'][number]): string {
+  const direct = photoSrc(image);
+  if (image.proxyUrl) return direct;
+
+  /*
+   * 로컬 collector 성공본은 pstatic 사진을 /api/image 로 대신 받아왔다.
+   * PM Connect가 proxyUrl을 주는 경우에는 기존 경로를 그대로 쓴다.
+   */
+  if (source === 'naver-place' && /(^|\.)pstatic\.net/i.test(safeHost(image.url))) {
+    return `/api/image?url=${encodeURIComponent(image.url)}`;
+  }
+  return direct;
+}
+
+function keepPlaceImage(image: ImportResult['images'][number]): boolean {
+  const url = String(image.url || '');
+  const alt = String(image.alt || '');
+  if (/(pup-review|review-phinf|visitor|profile|avatar|emoticon|badge|icon|sprite)/i.test(url)) return false;
+  if (/(리뷰|방문자|프로필|광고|가격표|이벤트|할인|쿠폰|프로모션)/.test(alt)) return false;
+  if (image.width > 0 && image.height > 0 && Math.min(image.width, image.height) < 420) return false;
+  if (image.width > 0 && image.height > 0 && (image.width / image.height > 3.2 || image.height / image.width > 3.2)) return false;
+  return true;
+}
+
+function safeHost(raw: string): string {
+  try { return new URL(raw).hostname; } catch { return ''; }
 }
 
 function originalOf(u: string): string {
