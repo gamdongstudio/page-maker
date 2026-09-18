@@ -89,6 +89,160 @@ function readPage() {
   };
 }
 
+/** 사진 탭의 업체 사진만 읽고 방문자 리뷰 사진은 제외한다. */
+function readPlacePhotos() {
+  const clean = (s) => (s || '').replace(/ /g, ' ').replace(/[ \t]+/g, ' ').trim();
+  const original = (raw) => {
+    try {
+      const u = new URL(raw);
+      if (u.hostname === 'search.pstatic.net' && u.pathname === '/common/' && u.searchParams.get('src')) {
+        return u.searchParams.get('src');
+      }
+      if (/pstatic\.net$/.test(u.hostname)) {
+        u.searchParams.delete('type');
+        u.searchParams.delete('w');
+        u.searchParams.delete('h');
+      }
+      return u.href;
+    } catch { return raw; }
+  };
+  const seen = new Set();
+  const images = [];
+  for (const img of document.querySelectorAll('img')) {
+    const alt = clean(img.alt);
+    const photoLink = img.closest('a[href*="filterType="]');
+    const href = photoLink?.getAttribute('href') || '';
+    const isBusiness = /^business_/i.test(alt) || /filterType=%EC%97%85%EC%B2%B4/i.test(href);
+    if (!isBusiness) continue;
+
+    const candidates = [
+      img.getAttribute('data-lazy-src'), img.getAttribute('data-src'),
+      img.currentSrc, img.src,
+      ...(img.srcset || '').split(',').map((x) => x.trim().split(/\s+/)[0]),
+    ].filter(Boolean);
+    const src = candidates[candidates.length - 1] || '';
+    if (!/^https?:/.test(src) || /\.svg($|\?)/i.test(src) || /(profile|icon_default)/i.test(src)) continue;
+
+    const url = original(src);
+    /* 가격표·이벤트·쿠폰 홍보물은 갤러리 기본 대상에서 제외한다. */
+    if (/(event|promo|coupon|price|menu|%C0%CC%BA%A5%C6%AE|%B0%A1%B0%DD%C7%A5)/i.test(url)) continue;
+    if (/(이벤트|할인|쿠폰|가격표|프로모션)/.test(alt)) continue;
+
+    const w = img.naturalWidth || img.width || 0;
+    const h = img.naturalHeight || img.height || 0;
+    if (w > 0 && w < 420) continue;
+    if (h > 0 && h < 420) continue;
+
+    const key = url.split('?')[0];
+    if (seen.has(key)) continue;
+    seen.add(key);
+    images.push({ url, width: w, height: h, alt });
+    if (images.length >= 40) break;
+  }
+  return images;
+}
+
+/** 실제 페이지에 존재하는 예약·톡톡 링크만 가져온다. */
+function pickPlaceLinks() {
+  const links = [...document.querySelectorAll('a[href]')].map((a) => ({
+    href: a.href,
+    text: (a.innerText || a.getAttribute('aria-label') || '').trim(),
+  }));
+  return {
+    bookingUrl: links.find((x) => /booking\.naver\.com/.test(x.href) && !/\/coupon\//.test(x.href))?.href || '',
+    talkUrl: links.find((x) => /talk\.naver\.com/.test(x.href))?.href || '',
+  };
+}
+
+/**
+ * 소식 탭에서 이벤트·할인·쿠폰·프로모션만 남긴다.
+ * 일반 공지·휴무 안내는 이벤트 혜택으로 넣지 않는다.
+ */
+function meaningfulNews(text) {
+  const lines = (text || '').split('\n').map((x) => x.trim()).filter(Boolean);
+  const promo = /(이벤트|할인|쿠폰|프로모션|특가|혜택|증정)/;
+  const stop = /^(홈|쿠폰|소식|예약|리뷰|사진|지도|정보|더보기|공유|알림받기)$/;
+  const out = [];
+
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!promo.test(lines[i])) continue;
+    const chunk = [lines[i]];
+    for (let j = i + 1; j < lines.length && chunk.length < 10; j += 1) {
+      if (stop.test(lines[j])) continue;
+      if (j > i + 1 && promo.test(lines[j]) && lines[j].length < 100) break;
+      chunk.push(lines[j]);
+    }
+    out.push(...chunk);
+    if (out.length >= 120) break;
+  }
+
+  return [...new Set(out)].join('\n');
+}
+
+/** 상품/예약에서 실제 상품명·가격·구성 문장을 한 덩어리로 넘긴다. */
+function productText(home, menu, booking) {
+  const between = (text, start, end) => {
+    const from = text.indexOf(start);
+    if (from < 0) return '';
+    const to = text.indexOf(end, from + start.length);
+    return text.slice(from, to < 0 ? undefined : to).trim();
+  };
+  const priceTable = between(home, '가격표', '홈페이지');
+  const bookingProduct = (booking || '').split(/\n(?:별점|방문자 리뷰|이용약관)/)[0].trim();
+  const menuProduct = (menu || '').split(/\n(?:별점|방문자 리뷰|이용약관)/)[0].trim();
+  return [priceTable, menuProduct, bookingProduct].filter(Boolean).join('\n');
+}
+
+/** 정보 탭에서 소개·촬영분야·주요특징·촬영철학을 기존 필드용으로 구조화한다. */
+function structurePlaceInfo(text) {
+  const lines = (text || '').split('\n').map((x) => x.trim()).filter(Boolean);
+  const introAt = lines.indexOf('소개');
+  const body = lines.slice(introAt >= 0 ? introAt + 1 : 0);
+  const featureAt = body.findIndex((x) => /(장점|특징)/.test(x));
+  const introLines = (featureAt > 0 ? body.slice(0, featureAt) : body.slice(0, 8))
+    .filter((x) => !/^(홈|쿠폰|소식|예약|리뷰|사진|지도|주변|정보)$/.test(x));
+  const featureLines = featureAt >= 0 ? body.slice(featureAt + 1, featureAt + 18) : [];
+  const categories = [...new Set(
+    text.match(/(?:가족|증명|여권|반려동물|프로필|우정|장수|제품|리마인드웨딩|아기|돌|백일|만삭)\s*사진/g) || [],
+  )];
+  const philosophy = body.filter((x) => /(철학|마음|원칙|최선|노력|정성)/.test(x)).slice(0, 4).join(' ');
+  return {
+    intro: introLines.slice(0, 8).join('\n'),
+    shootingFields: categories.join(', '),
+    features: featureLines.join('\n'),
+    philosophy,
+  };
+}
+
+async function settle(page) {
+  await page.waitForLoadState('domcontentloaded').catch(() => {});
+  await sleep(1100);
+  for (let i = 1; i <= 4; i += 1) {
+    await page.evaluate((n) => window.scrollTo(0, document.body.scrollHeight * n / 4), i).catch(() => {});
+    await sleep(350);
+  }
+}
+
+async function readPlaceTab(context, root, tab) {
+  const p = await context.newPage();
+  try {
+    await p.goto(`${root}/${tab}`, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    await settle(p);
+    if (tab === 'home') {
+      await p.locator('[data-nlog-area="plc_btp.bzhour"]').first().click({ timeout: 1500 }).catch(() => {});
+      await sleep(300);
+    }
+    const got = await p.evaluate(readPage);
+    if (tab === 'home') {
+      got.text = (await p.locator('body').innerText()).replace(/ /g, ' ').replace(/[ \t]+/g, ' ').trim();
+    }
+    return got;
+  } finally {
+    await p.close().catch(() => {});
+  }
+}
+
+
 /* ------------------------------------------------------------------ */
 
 const EXTRACTORS = {
@@ -125,36 +279,71 @@ const EXTRACTORS = {
    * 안 되면 읽은 척하지 않고 그대로 알린다.
    */
   'naver-place': async (page, url) => {
-    let target = url;
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    await settle(page);
 
-    /* 짧은 주소(naver.me)는 한 번 열어 실제 주소를 알아낸다 */
-    if (/naver\.me/.test(url)) {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 }).catch(() => {});
-      await sleep(1500);
-      target = page.url();
+    const finalUrl = page.url();
+    const id = finalUrl.match(/(?:place|restaurant|hairshop)\/(\d+)/)?.[1]
+      || url.match(/(?:place|restaurant|hairshop)\/(\d+)/)?.[1]
+      || finalUrl.match(/[?&]placeId=(\d+)/)?.[1]
+      || url.match(/[?&]placeId=(\d+)/)?.[1];
+
+    if (!id) {
+      const frame = page.frames().find((f) => /entryIframe|place/.test(f.name() || f.url()));
+      const got = await (frame ?? page).evaluate(readPage);
+      return { ...got, unreadable: isMapChromeOnly(got.text) };
     }
 
-    /* 주소에서 가게 번호를 뽑아 가게 화면으로 바꾼다 */
-    const id = target.match(/place\/(\d+)/)?.[1];
-    if (id) target = `https://pcmap.place.naver.com/place/${id}/home`;
+    /*
+     * 예전 성공본에서 실제로 검증된 방식:
+     * 홈·정보·소식·메뉴·예약을 각각 읽고, 사진 탭에서는 업체 사진만 별도로 읽는다.
+     */
+    const root = `https://m.place.naver.com/place/${id}`;
+    const [home, info, news, menu, booking] = await Promise.all([
+      readPlaceTab(page.context(), root, 'home'),
+      readPlaceTab(page.context(), root, 'information'),
+      readPlaceTab(page.context(), root, 'feed'),
+      readPlaceTab(page.context(), root, 'menu'),
+      readPlaceTab(page.context(), root, 'booking'),
+    ]);
 
-    await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 25000 });
-    await sleep(2500);
+    await page.goto(`${root}/photo`, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    await settle(page);
 
-    /* 내용이 iframe(entryIframe) 안에 있는 경우가 있다 */
-    const frame = page.frames().find((f) => /entryIframe/.test(f.name() || ''));
-    const where = frame ?? page;
+    /* 소식 탭에 쓰인 홍보 이미지는 갤러리에서 한 번 더 제외한다. */
+    const newsImageKeys = new Set((news.images || []).map((im) => {
+      try { return new URL(im.url).searchParams.get('src') || im.url.split('?')[0]; }
+      catch { return im.url.split('?')[0]; }
+    }));
 
-    /* 영업시간은 접혀 있다 — 펼쳐야 요일별 시간이 보인다. 안 되면 그냥 넘어간다 */
-    await expandHours(where);
+    const images = (await page.evaluate(readPlacePhotos))
+      .filter((im) => !newsImageKeys.has(im.url));
 
-    const got = await where.evaluate(readPage);
+    const photoLinks = await page.evaluate(pickPlaceLinks);
 
-    /* 지도 메뉴 글자만 왔는지 본다 — 그러면 못 읽은 것이다 */
-    if (isMapChromeOnly(got.text)) {
-      return { ...got, text: '', images: [], unreadable: true };
-    }
-    return got;
+    await page.goto(`${root}/home`, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    await settle(page);
+    const homeLinks = await page.evaluate(pickPlaceLinks);
+
+    const structured = structurePlaceInfo(info.text || home.text);
+    const eventNews = meaningfulNews(news.text);
+    const products = productText(home.text, menu.text, booking.text);
+
+    return {
+      ...home,
+      text: [home.text, info.text, eventNews, menu.text, booking.text].filter(Boolean).join('\n'),
+      images,
+      place: {
+        placeUrl: root,
+        info: [home.text, info.text].filter(Boolean).join('\n'),
+        ...structured,
+        news: eventNews,
+        products,
+        bookingUrl: homeLinks.bookingUrl || photoLinks.bookingUrl,
+        talkUrl: homeLinks.talkUrl || photoLinks.talkUrl,
+      },
+      unreadable: !home.text && !info.text && !products && images.length === 0,
+    };
   },
 
   /** 일반 홈페이지 */
@@ -236,6 +425,7 @@ export async function collectFromUrl(url) {
       images: got.images || [],
       /* 열기는 했지만 가게 내용을 못 읽은 경우 — 읽은 척하지 않는다 */
       unreadable: !!got.unreadable,
+      ...(got.place ? { place: got.place } : {}),
     };
   } finally {
     await close();
