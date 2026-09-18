@@ -177,7 +177,7 @@ export default function App() {
         }
         /* 위로 / 아래로 — 보이는 것끼리 자리를 바꾼다 */
         update((d) => {
-          const visible = shownMenus(d, selectedId);
+          const visible = shownMenus(d);
           const vi = visible.findIndex((x) => x.id === id);
           const other = visible[action === 'up' ? vi - 1 : vi + 1];
           if (!other) return;
@@ -391,7 +391,7 @@ export default function App() {
           onPick={(kind) => {
             const made = makeMenu(kind);
             update((d) => {
-              const visible = shownMenus(d, selectedId);
+              const visible = shownMenus(d);
               const at = addAt >= visible.length
                 ? d.menus.length
                 : d.menus.findIndex((m) => m.id === visible[addAt].id);

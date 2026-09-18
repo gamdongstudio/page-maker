@@ -1563,3 +1563,6 @@ button,input,textarea,select{font-family:inherit}
 
 /* ---- 구성: 비어 있는 영역 표시 ---- */
 .menu__empty{font-style:normal;font-size:11px;color:#9a9a9a;margin-left:6px;font-weight:500}
+
+/* 왼쪽 미리보기: 비어 있는 글 칸은 안내 없이 숨긴다 (입력 안내는 오른쪽에만) */
+.detail--edit .ed--empty:not(:focus){display:none}

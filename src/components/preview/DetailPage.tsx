@@ -60,7 +60,7 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
    * 저장 이미지(edit 없음)에서는 **내용이 없는 영역을 뺀다.**
    * 미리보기에서는 채울 수 있게 그대로 보여주고, 빠진다는 것을 작게 알린다.
    */
-  const visible = edit ? shownMenus(project, selectedId) : shownMenus(project);
+  const visible = shownMenus(project);
   const sidePad = narrow ? Math.min(d.padding, 20) : d.padding;
   const contentWidth = width - sidePad * 2;
 
@@ -95,13 +95,13 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
               />
             )}
             {/* 입력 안내("여기에 보입니다" 등)는 지금 고르고 있는 영역에서만 보인다 */}
-            <EditingContext.Provider value={!!edit && selectedId === menu.id}>
+            <EditingContext.Provider value={false}>
               <MenuBody
                 menu={menu} project={project} narrow={narrow}
-                boxWidth={contentWidth} edit={edit} selected={selectedId === menu.id}
+                boxWidth={contentWidth} edit={edit}
               />
               {!ownsPhotos(menu.kind, menu.template) && (
-                <PhotoBlock menu={menu} project={project} boxWidth={contentWidth} edit={edit} selected={selectedId === menu.id} />
+                <PhotoBlock menu={menu} project={project} boxWidth={contentWidth} edit={edit} />
               )}
             </EditingContext.Provider>
           </div>
@@ -127,7 +127,8 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
         </div>
       ))}
 
-      {visible.length === 0 && edit && (
+      {/* 영역이 아예 없을 때만 안내 (비어 있는 영역만 있으면 깔끔하게 비워둔다) */}
+      {project.menus.length === 0 && edit && (
         <p style={{ color: '#9aa0a6', padding: '60px 0' }}>
           오른쪽에서 영역을 추가하면 여기에 상세페이지가 만들어집니다.
         </p>
@@ -179,8 +180,8 @@ function AddHere({ onAdd }: { onAdd: () => void }) {
 
 /* ------------------------------------------------------------------ */
 
-function MenuBody({ menu, project, narrow, boxWidth, edit, selected = false }: {
-  menu: MenuItem; project: ProjectData; narrow: boolean; boxWidth: number; edit?: PreviewEdit; selected?: boolean;
+function MenuBody({ menu, project, narrow, boxWidth, edit }: {
+  menu: MenuItem; project: ProjectData; narrow: boolean; boxWidth: number; edit?: PreviewEdit;
 }) {
   const d = project.design;
   const p = project.product;
@@ -232,7 +233,7 @@ function MenuBody({ menu, project, narrow, boxWidth, edit, selected = false }: {
     case 'main':
       return (
         <div>
-          {(p.brand || (edit && selected)) && (
+          {p.brand && (
             <Editable
               as="p"
               on={!!edit}
@@ -242,15 +243,17 @@ function MenuBody({ menu, project, narrow, boxWidth, edit, selected = false }: {
               onSave={(v) => edit?.onProduct('brand', v)}
             />
           )}
-          <Editable
-            as="h1"
-            on={!!edit}
-            value={p.name || (edit ? '' : menu.title)}
-            placeholder="상품명을 넣어주세요"
-            style={{ ...titleStyle, fontSize: narrow ? Math.round(d.titleSize * 0.95) : d.titleSize + 6 }}
-            onSave={(v) => edit?.onProduct('name', v)}
-          />
-          {(p.tagline || (edit && selected)) && (
+          {p.name && (
+            <Editable
+              as="h1"
+              on={!!edit}
+              value={p.name}
+              placeholder="상품명을 넣어주세요"
+              style={{ ...titleStyle, fontSize: narrow ? Math.round(d.titleSize * 0.95) : d.titleSize + 6 }}
+              onSave={(v) => edit?.onProduct('name', v)}
+            />
+          )}
+          {p.tagline && (
             <Editable
               as="p"
               on={!!edit}
@@ -260,7 +263,7 @@ function MenuBody({ menu, project, narrow, boxWidth, edit, selected = false }: {
               onSave={(v) => edit?.onProduct('tagline', v)}
             />
           )}
-          <PriceRow project={project} edit={edit} selected={selected} />
+          <PriceRow project={project} edit={edit} />
         </div>
       );
 
@@ -332,7 +335,7 @@ function MenuBody({ menu, project, narrow, boxWidth, edit, selected = false }: {
       return (
         <div>
           <Title />
-          {(menu.body || edit) && (
+          {menu.body && (
             <Editable
               as="p" on={!!edit} multiline
               value={menu.body}
@@ -407,8 +410,8 @@ function MenuBody({ menu, project, narrow, boxWidth, edit, selected = false }: {
  * 메뉴에 딸린 사진.
  * 메뉴에 직접 지정한 사진이 없으면, 메뉴 성격에 맞는 사진을 알아서 보여준다.
  */
-function PhotoBlock({ menu, project, boxWidth, edit, selected = false }: {
-  menu: MenuItem; project: ProjectData; boxWidth: number; edit?: PreviewEdit; selected?: boolean;
+function PhotoBlock({ menu, project, boxWidth, edit }: {
+  menu: MenuItem; project: ProjectData; boxWidth: number; edit?: PreviewEdit;
 }) {
   const d = project.design;
   const list = photosOf(menu, project);
@@ -416,26 +419,10 @@ function PhotoBlock({ menu, project, boxWidth, edit, selected = false }: {
   /** 어떤 사진을 바꾸는 중인지 — 비어 있으면 새로 넣는 것 */
   const [target, setTarget] = useState<string | null>(null);
 
-  /* 사진이 하나도 없을 때 — 편집 중에만 '여기에 사진 넣기' 칸을 보여준다 */
+  /* 사진이 하나도 없을 때 */
   if (list.length === 0) {
-    /* '여기에 사진 넣기' 칸은 지금 고르고 있는 영역에서만 */
-    if (!edit || !selected) return null;
-    return (
-      <>
-        <button
-          className="photoslot"
-          onClick={(e) => { e.stopPropagation(); setTarget(null); fileRef.current?.click(); }}
-          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          onDrop={(e) => {
-            e.preventDefault(); e.stopPropagation();
-            edit.onPhotoFiles(menu.id, null, Array.from(e.dataTransfer.files));
-          }}
-        >
-          여기에 사진 넣기 · 끌어다 놓아도 됩니다
-        </button>
-        <PhotoInput inputRef={fileRef} onPick={(files) => edit.onPhotoFiles(menu.id, target, files)} />
-      </>
-    );
+    /* 빈 사진 칸은 왼쪽 미리보기에 띄우지 않는다 (사진은 오른쪽에서 넣는다) */
+    return null;
   }
 
   /* 맨 위 대문 사진인지 */
@@ -566,12 +553,12 @@ function ctaButtons(p: ProjectData): { label: string }[] {
   return out.length ? out.slice(0, 3) : [{ label: '예약·문의하기' }];
 }
 
-function PriceRow({ project, big = false, edit, selected = false }: {
-  project: ProjectData; big?: boolean; edit?: PreviewEdit; selected?: boolean;
+function PriceRow({ project, big = false, edit }: {
+  project: ProjectData; big?: boolean; edit?: PreviewEdit;
 }) {
   const d = project.design;
   const { listPrice, salePrice } = project.product;
-  if (!listPrice && !salePrice && !(edit && selected)) return null;
+  if (!listPrice && !salePrice) return null;
 
   const list = formatWon(listPrice);
   const sale = formatWon(salePrice);

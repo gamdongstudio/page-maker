@@ -13,7 +13,9 @@ export function PageCheck({ onGo }: { onGo: (tab: 'content' | 'photos' | 'menus'
   const [open, setOpen] = useState(false);
   const p = project;
   const visible = p.menus.filter((m) => !m.hidden);
-  const empty = visible.filter((m) => !hasContent(m, p));
+  /* 맨 위·예약 영역은 글을 넣으면 바로 보여야 하므로 숨기지 않는다 */
+  const keep = (k: string) => k === 'main' || k === 'cta';
+  const empty = visible.filter((m) => !keep(m.kind) && !hasContent(m, p));
 
   const items: { ok: boolean; text: string; go?: 'content' | 'photos' | 'menus' }[] = [
     { ok: !!p.product.name.trim(), text: p.product.name.trim() ? '상품명' : '상품명 확인 필요', go: 'content' },
@@ -48,7 +50,7 @@ export function PageCheck({ onGo }: { onGo: (tab: 'content' | 'photos' | 'menus'
               <button
                 className="linkbtn"
                 onClick={() => update((d) => {
-                  d.menus.forEach((m) => { if (!m.hidden && !hasContent(m, d)) m.hidden = true; });
+                  d.menus.forEach((m) => { if (!m.hidden && !keep(m.kind) && !hasContent(m, d)) m.hidden = true; });
                 }, { label: 'menu.hideEmpty', merge: false })}
               >
                 빈 영역 숨기기

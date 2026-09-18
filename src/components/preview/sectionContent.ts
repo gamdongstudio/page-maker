@@ -14,11 +14,11 @@ import { photosOf } from '@/utils/menuPhotos';
  * 미리보기에 보여줄 영역.
  *
  * 내용이 없는 영역은 **미리보기에서도** 숨긴다. (저장 이미지와 같은 모습)
- * 다만 지금 고르고 있는 영역은 비어 있어도 보여줘서 바로 채울 수 있게 한다.
+ * 입력 안내는 오른쪽 편집 칸에만 둔다.
  * ⚠ 데이터는 지우지 않는다. 내용을 넣으면 곧바로 다시 나타난다.
  */
-export function shownMenus(project: ProjectData, selectedId?: string | null): MenuItem[] {
-  return project.menus.filter((m) => !m.hidden && (m.id === selectedId || hasContent(m, project)));
+export function shownMenus(project: ProjectData): MenuItem[] {
+  return project.menus.filter((m) => !m.hidden && hasContent(m, project));
 }
 
 export function hasContent(menu: MenuItem, project: ProjectData): boolean {
@@ -29,8 +29,13 @@ export function hasContent(menu: MenuItem, project: ProjectData): boolean {
 
   switch (menu.kind) {
     case 'main':
-    case 'cta':
-      return true;
+      return has(p.name) || has(p.brand) || has(p.tagline) || has(p.listPrice) || has(p.salePrice) || photos;
+
+    case 'cta': {
+      const s = project.studio;
+      return has(menu.body) || has(p.contact) || has(p.buyLink)
+        || has(s?.bookingUrl) || has(s?.phone) || has(s?.sns);
+    }
 
     case 'event': {
       const ev = project.event;
