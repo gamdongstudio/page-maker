@@ -29,54 +29,69 @@ export function StepEdit({ tab, onTab, focusMenuId, onFocused, onSelect }: {
   const [pending, startTransition] = useTransition();
   /** 누른 탭 — 내용보다 먼저 켜 보인다 */
   const [picked, setPicked] = useState<EditTab>(tab);
+  const [open, setOpen] = useState<EditTab | null>(tab);
   const tabsRef = useRef<HTMLDivElement>(null);
 
   /* 미리보기에서 영역을 눌러 탭이 바뀐 경우도 맞춘다 */
-  useEffect(() => { setPicked(tab); }, [tab]);
+  useEffect(() => {
+    setPicked(tab);
+    setOpen(tab);
+  }, [tab]);
 
   const go = (t: EditTab) => {
+    /* 같은 제목을 다시 누르면 닫고, 다른 제목을 누르면 이전 것은 자동으로 닫힌다. */
+    if (open === t) {
+      setOpen(null);
+      return;
+    }
+    setOpen(t);
     setPicked(t);
-    /* 아래로 내려가 있었다면 탭이 보이는 자리로 — 새 내용의 시작이 보이게 */
     revealTop(tabsRef.current);
     startTransition(() => onTab(t));
   };
 
-  const loading = pending || picked !== tab;
 
   return (
     <div className="stack edit">
       <PageCheck onGo={go} />
 
-      <div className="edittabs" role="tablist" aria-label="고칠 곳" ref={tabsRef}>
-        {EDIT_TABS.map((t) => (
-          <button
-            key={t.key}
-            role="tab"
-            aria-selected={picked === t.key}
-            className={'edittab' + (picked === t.key ? ' is-on' : '')}
-            onClick={() => go(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <div className="editaccordion" aria-label="고칠 곳" ref={tabsRef}>
+        {EDIT_TABS.map((t) => {
+          const isOpen = open === t.key;
+          const isLoading = isOpen && (pending || picked !== tab);
+          return (
+            <section key={t.key} className={'editacc' + (isOpen ? ' is-open' : '')}>
+              <button
+                className="editacc__title"
+                aria-expanded={isOpen}
+                onClick={() => go(t.key)}
+              >
+                <span>{t.label}</span>
+                <b aria-hidden>{isOpen ? '−' : '+'}</b>
+              </button>
 
-      <div className="edittab__body" role="tabpanel" aria-busy={loading}>
-        {loading && <p className="edittab__loading" aria-live="polite">불러오는 중…</p>}
-        <div className={loading ? 'edittab__stale' : undefined}>
-          {tab === 'content' && (
-            <>
-              <p className="field__hint">
-                영역마다 다른 글은 <b>[구성]</b>에서 그 영역을 열어 고치거나, 왼쪽 글자를 눌러 바로 고칠 수 있어요.
-              </p>
-              <ContentFields mode="edit" />
-              <ChatGptPolish />
-            </>
-          )}
-          {tab === 'photos' && <PhotoLibrary />}
-          {tab === 'menus' && <StepMenus focusMenuId={focusMenuId} onFocused={onFocused} onSelect={onSelect} />}
-          {tab === 'design' && <StepDesign />}
-        </div>
+              {isOpen && (
+                <div className="editacc__body" aria-busy={isLoading}>
+                  {isLoading && <p className="edittab__loading" aria-live="polite">불러오는 중…</p>}
+                  <div className={isLoading ? 'edittab__stale' : undefined}>
+                    {tab === 'content' && (
+                      <>
+                        <p className="field__hint">
+                          영역마다 다른 글은 <b>[구성]</b>에서 그 영역을 열어 고치거나, 왼쪽 글자를 눌러 바로 고칠 수 있어요.
+                        </p>
+                        <ContentFields mode="edit" />
+                        <ChatGptPolish />
+                      </>
+                    )}
+                    {tab === 'photos' && <PhotoLibrary />}
+                    {tab === 'menus' && <StepMenus focusMenuId={focusMenuId} onFocused={onFocused} onSelect={onSelect} />}
+                    {tab === 'design' && <StepDesign />}
+                  </div>
+                </div>
+              )}
+            </section>
+          );
+        })}
       </div>
     </div>
   );
