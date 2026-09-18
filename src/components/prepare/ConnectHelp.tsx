@@ -21,18 +21,18 @@ export function ConnectHelp({ status, onRecheck, onPaste, checking }: {
       <b className="connect__title">네이버 글과 사진을 자동으로 가져오기 위해 처음 한 번 연결이 필요합니다.</b>
 
       {status.state === 'old-version' ? (
-        <p>연결 프로그램(BARODU Tools)을 새 버전으로 올려주세요. 프로그램 아이콘 → 업데이트 확인을 누르면 됩니다.</p>
+        <p>연결 프로그램(PM Connect)을 새 버전으로 올려주세요. 프로그램 아이콘 → 업데이트 확인을 누르면 됩니다.</p>
       ) : status.state === 'not-ready' ? (
         <p>연결 프로그램이 켜져 있지만 아직 준비가 덜 됐습니다. 프로그램을 다시 설치하면 해결됩니다.</p>
       ) : installed ? (
         <p>
-          연결 프로그램(BARODU Tools)이 꺼져 있거나 브라우저가 연결을 막았습니다.
-          시작 메뉴에서 <b>BARODU Tools</b>를 켠 뒤 <b>연결 확인</b>을 눌러주세요.
+          연결 프로그램(PM Connect)이 꺼져 있거나 브라우저가 연결을 막았습니다.
+          시작 메뉴에서 <b>PM Connect</b>를 켠 뒤 <b>연결 확인</b>을 눌러주세요.
         </p>
       ) : (
         <>
           <p>
-            연결 프로그램(<b>BARODU Tools</b>)을 한 번만 설치하면 됩니다.
+            연결 프로그램(<b>PM Connect</b>)을 한 번만 설치하면 됩니다.
             네이버 비밀번호는 저장하지 않습니다.
           </p>
           <ol className="connect__steps">

@@ -223,19 +223,19 @@ export async function toolsStatus(): Promise<ToolsStatus> {
 
   if (!found) {
     return wasSeenBefore()
-      ? { state: 'stopped', version: '', port: 0, label: 'BARODU Tools 꺼짐' }
-      : { state: 'not-installed', version: '', port: 0, label: 'BARODU Tools 필요' };
+      ? { state: 'stopped', version: '', port: 0, label: 'PM Connect 꺼짐' }
+      : { state: 'not-installed', version: '', port: 0, label: 'PM Connect 필요' };
   }
 
   if (!versionAtLeast(found.version, BARODU_TOOLS.minVersion)) {
-    return { state: 'old-version', version: found.version, port: found.port, label: 'BARODU Tools 업데이트 필요' };
+    return { state: 'old-version', version: found.version, port: found.port, label: 'PM Connect 업데이트 필요' };
   }
 
   if (!found.ready) {
-    return { state: 'not-ready', version: found.version, port: found.port, label: 'BARODU Tools 준비 안 됨' };
+    return { state: 'not-ready', version: found.version, port: found.port, label: 'PM Connect 준비 안 됨' };
   }
 
-  return { state: 'connected', version: found.version, port: found.port, label: 'BARODU Tools 연결됨' };
+  return { state: 'connected', version: found.version, port: found.port, label: 'PM Connect 연결됨' };
 }
 
 /* ------------------------------------------------------------------ */
@@ -303,8 +303,8 @@ export async function collectFromUrl(raw: string): Promise<ImportResult | Import
       ok: false,
       offline: true,
       reason: wasSeenBefore()
-        ? 'BARODU Tools가 꺼져 있습니다. 시작 메뉴에서 BARODU Tools를 실행한 뒤 다시 해주세요.'
-        : '링크에서 정보를 가져오려면 BARODU Tools가 필요합니다.',
+        ? 'PM Connect가 꺼져 있습니다. 시작 메뉴에서 PM Connect를 실행한 뒤 다시 해주세요.'
+        : '링크에서 정보를 가져오려면 PM Connect가 필요합니다.',
     };
   }
 
@@ -317,7 +317,7 @@ export async function collectFromUrl(raw: string): Promise<ImportResult | Import
 
     if (!(res.headers.get('content-type') ?? '').includes('application/json')) {
       cached = null;
-      return { ok: false, offline: true, reason: 'BARODU Tools와 연결이 끊어졌습니다. 다시 시도해주세요.' };
+      return { ok: false, offline: true, reason: 'PM Connect와 연결이 끊어졌습니다. 다시 시도해주세요.' };
     }
 
     const data = await res.json() as ImportResult | ImportFail;
@@ -336,7 +336,7 @@ export async function collectFromUrl(raw: string): Promise<ImportResult | Import
     return {
       ok: false,
       offline: true,
-      reason: 'BARODU Tools와 연결이 끊어졌습니다. 켜져 있는지 확인한 뒤 다시 시도해주세요.',
+      reason: 'PM Connect와 연결이 끊어졌습니다. 켜져 있는지 확인한 뒤 다시 시도해주세요.',
     };
   }
 }

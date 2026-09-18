@@ -86,22 +86,22 @@ export async function canAutoFill(): Promise<{ ok: boolean; reason: string }> {
     return {
       ok: false,
       reason: '이 주소에서는 자동입력을 쓸 수 없습니다. '
-        + 'BARODU Tools 는 컴퓨터에 설치된 제작기에서만 답합니다. '
+        + 'PM Connect는 컴퓨터에 설치된 제작기에서만 답합니다. '
         + '아래 등록자료 받기와 항목별 복사는 그대로 쓰실 수 있어요.',
     };
   }
   const s = await toolsStatus();
   if (s.state === 'connected') return { ok: true, reason: '' };
   if (s.state === 'stopped') {
-    return { ok: false, reason: 'BARODU Tools 가 꺼져 있습니다. 시작 메뉴에서 실행한 뒤 다시 확인을 눌러주세요.' };
+    return { ok: false, reason: 'PM Connect가 꺼져 있습니다. 시작 메뉴에서 실행한 뒤 다시 확인을 눌러주세요.' };
   }
   if (s.state === 'not-installed') {
-    return { ok: false, reason: 'BARODU Tools 가 필요합니다. 설치한 뒤에 쓸 수 있어요.' };
+    return { ok: false, reason: 'PM Connect가 필요합니다. 설치한 뒤에 쓸 수 있어요.' };
   }
   if (s.state === 'old-version') {
-    return { ok: false, reason: 'BARODU Tools 를 새 버전으로 올려주세요.' };
+    return { ok: false, reason: 'PM Connect를 새 버전으로 올려주세요.' };
   }
-  return { ok: false, reason: 'BARODU Tools 가 아직 준비되지 않았습니다.' };
+  return { ok: false, reason: 'PM Connect가 아직 준비되지 않았습니다.' };
 }
 
 /**
@@ -129,19 +129,19 @@ export async function autoFill(v: SmartStorePayload, mode: FillMode): Promise<Pu
       return {
         ok: false,
         steps: [],
-        reason: '지금 설치된 BARODU Tools 는 스마트스토어 자동입력을 아직 못 합니다. 새 버전으로 올려주세요.',
+        reason: '지금 설치된 PM Connect는 스마트스토어 자동입력을 아직 못 합니다. 새 버전으로 올려주세요.',
       };
     }
 
     const got = (await res.json()) as PublishResult;
     return got && typeof got === 'object'
       ? got
-      : { ok: false, steps: [], reason: 'BARODU Tools 의 답을 읽지 못했습니다.' };
+      : { ok: false, steps: [], reason: 'PM Connect의 답을 읽지 못했습니다.' };
   } catch {
     return {
       ok: false,
       steps: [],
-      reason: 'BARODU Tools 와 연결하지 못했습니다. 켜져 있는지 확인해 주세요.',
+      reason: 'PM Connect와 연결하지 못했습니다. 켜져 있는지 확인해 주세요.',
     };
   }
 }

@@ -187,7 +187,7 @@ export function SmartStore({ getStage }: { getStage: () => HTMLElement | null })
           disabled={!!busy || !toolsOk}
         >
           <b>스마트스토어 자동입력</b>
-          <em>BARODU Tools 가 상품등록 화면을 열고 정보와 사진을 채웁니다</em>
+          <em>PM Connect가 상품등록 화면을 열고 정보와 사진을 채웁니다</em>
         </button>
         {!toolsOk && toolsWhy && (
           <p className="ss__why">
@@ -237,7 +237,7 @@ export function SmartStore({ getStage }: { getStage: () => HTMLElement | null })
       <div className="ss__way">
         <button className="btn btn--line wide savepick" onClick={() => void doZip()} disabled={!!busy}>
           <b>스마트스토어 등록자료 받기</b>
-          <em>사진과 복사용 문구를 ZIP 으로 — BARODU Tools 없이도 됩니다</em>
+          <em>사진과 복사용 문구를 ZIP 으로 — PM Connect 없이도 됩니다</em>
         </button>
         <p className="field__hint">
           01_대표사진 · 02_추가사진 · 03_상세페이지 · 04_입력문구 순서로 들어 있습니다.

@@ -204,8 +204,8 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
         <div className="note note--warn">
           {tools.state === 'stopped' ? (
             <>
-              <b>BARODU Tools와 연결되지 않았습니다.</b>
-              <br />시작 메뉴에서 <b>BARODU Tools</b>를 실행한 뒤 <b>다시 확인</b>을 눌러주세요.
+              <b>PM Connect와 연결되지 않았습니다.</b>
+              <br />시작 메뉴에서 <b>PM Connect</b>를 실행한 뒤 <b>다시 확인</b>을 눌러주세요.
               <br /><span className="field__hint">
                 제작기가 다른 프로그램을 대신 켤 수는 없습니다.
               </span>
@@ -213,12 +213,12 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
             </>
           ) : (
             <>
-              <b>BARODU Tools</b>
+              <b>PM Connect</b>
               <br />링크에서 기존 정보를 자동으로 가져올 때 필요한 BARODU 공식 도구입니다.
               <span className="importerr__btns">
                 {BARODU_TOOLS.installerUrl ? (
                   <a className="btn btn--line" href={BARODU_TOOLS.installerUrl} rel="noreferrer">
-                    BARODU Tools 다운로드
+                    PM Connect 다운로드
                   </a>
                 ) : (
                   <span className="field__hint">설치파일: <code>{BARODU_TOOLS.installerFileName}</code></span>
@@ -239,15 +239,15 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
 
       {tools.state === 'old-version' && (
         <p className="note note--warn">
-          <b>BARODU Tools 업데이트가 필요합니다.</b> (지금 {tools.version} · 필요 {BARODU_TOOLS.minVersion})
-          <br />BARODU Tools 아이콘 → 업데이트 확인을 눌러주세요.
+          <b>PM Connect 업데이트가 필요합니다.</b> (지금 {tools.version} · 필요 {BARODU_TOOLS.minVersion})
+          <br />PM Connect 아이콘 → 업데이트 확인을 눌러주세요.
         </p>
       )}
 
       {tools.state === 'not-ready' && (
         <p className="note note--warn">
-          BARODU Tools는 켜져 있지만 <b>읽기 도구가 준비되지 않았습니다.</b>
-          <br />BARODU Tools를 다시 설치하면 해결됩니다.
+          PM Connect는 켜져 있지만 <b>읽기 도구가 준비되지 않았습니다.</b>
+          <br />PM Connect를 다시 설치하면 해결됩니다.
         </p>
       )}
 
@@ -411,7 +411,7 @@ function productsIn(got: ImportResult): string[] {
 function LocalNetworkHelp() {
   return (
     <span className="field__hint">
-      <br />BARODU Tools와 연결하려면 Chrome에서 <b>"로컬 네트워크 접근"</b> 권한을 허용해주세요.
+      <br />PM Connect와 연결하려면 Chrome에서 <b>"로컬 네트워크 접근"</b> 권한을 허용해주세요.
       <details className="lnahelp">
         <summary>설정 방법 보기</summary>
         <ol>
