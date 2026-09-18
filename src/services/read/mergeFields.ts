@@ -28,7 +28,7 @@ export interface FieldChange {
 }
 
 /** 여러 줄로 이어 붙일 수 있는 항목 */
-const TEXT_KEYS = new Set(['includes', 'extras', 'otherPrices', 'perks', 'concepts']);
+const TEXT_KEYS = new Set(['intro', 'shootingFields', 'features', 'philosophy', 'includes', 'extras', 'otherPrices', 'perks', 'eventBody', 'concepts']);
 
 /** 화면에 보이는 이름 — ① 입력칸 이름과 맞춘다 */
 const LABEL: Record<string, string> = {
@@ -39,6 +39,12 @@ const LABEL: Record<string, string> = {
   hours: '영업시간',
   offDays: '휴무일',
   bookingUrl: '예약 링크',
+  placeUrl: '네이버 플레이스',
+  talkUrl: '네이버 톡톡',
+  intro: '사진관 소개',
+  shootingFields: '촬영분야',
+  features: '주요 특징',
+  philosophy: '촬영철학',
   productName: '상품 종류',
   listPrice: '정상가',
   eventPrice: '판매가',
@@ -47,6 +53,8 @@ const LABEL: Record<string, string> = {
   includes: '상품 구성',
   extras: '추가 비용',
   perks: '혜택',
+  eventTitle: '이벤트 제목',
+  eventBody: '이벤트 내용',
   eventPeriod: '이벤트 기간',
   concepts: '콘셉트',
 };
@@ -65,6 +73,12 @@ export function currentValue(p: ProjectData, key: string): string {
     case 'hours': return s?.hours ?? '';
     case 'offDays': return s?.offDays ?? '';
     case 'bookingUrl': return s?.bookingUrl ?? '';
+    case 'placeUrl': return s?.placeUrl ?? '';
+    case 'talkUrl': return s?.talkUrl ?? '';
+    case 'intro': return s?.intro ?? '';
+    case 'shootingFields': return p.product.category ?? '';
+    case 'features': return p.product.benefits ?? '';
+    case 'philosophy': return p.shoot?.emphasis ?? '';
     case 'productName': return p.shoot?.productName ?? '';
     case 'listPrice': return p.product.listPrice;
     case 'eventPrice': return p.product.salePrice;
@@ -73,6 +87,8 @@ export function currentValue(p: ProjectData, key: string): string {
     case 'extras':
     case 'otherPrices': return p.pricing?.etcExtra ?? '';
     case 'perks': return (p.perks ?? []).map((x) => (x.body ? `${x.title} | ${x.body}` : x.title)).join('\n');
+    case 'eventTitle': return p.event?.title ?? '';
+    case 'eventBody': return p.event?.body ?? '';
     case 'eventPeriod': return p.event?.period ?? '';
     case 'concepts': return (p.concepts ?? []).map((c) => c.name).join('\n');
     default: return '';
@@ -141,6 +157,19 @@ export function applyChange(d: ProjectData, ch: FieldChange, how: 'fill' | 'repl
     case 'hours': studio().hours = value; break;
     case 'offDays': studio().offDays = value; break;
     case 'bookingUrl': studio().bookingUrl = value; break;
+    case 'placeUrl': studio().placeUrl = value; break;
+    case 'talkUrl': studio().talkUrl = value; break;
+    case 'intro':
+      studio().intro = value;
+      if (!d.product.description.trim()) d.product.description = value;
+      break;
+    case 'shootingFields':
+      if (!d.product.category.trim() || how === 'replace') d.product.category = value;
+      break;
+    case 'features': d.product.benefits = value; break;
+    case 'philosophy':
+      d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), emphasis: value };
+      break;
     case 'productName':
       d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), productName: value };
       break;
@@ -163,6 +192,12 @@ export function applyChange(d: ProjectData, ch: FieldChange, how: 'fill' | 'repl
         : [...new Set([...lines(pr.etcExtra), ...lines(ch.incoming)])].join('\n');
       break;
     }
+    case 'eventTitle':
+      d.event = { ...EMPTY_EVENT, ...(d.event ?? {}), title: value };
+      break;
+    case 'eventBody':
+      d.event = { ...EMPTY_EVENT, ...(d.event ?? {}), body: value };
+      break;
     case 'perks':
       d.perks = lines(value).map((line) => {
         const [title, ...rest] = line.split('|');
@@ -193,8 +228,8 @@ export function applyChange(d: ProjectData, ch: FieldChange, how: 'fill' | 'repl
   }
 
   /* 예약·문의 안내가 비어 있으면 전화·예약 링크로 채운다 */
-  if ((ch.key === 'phone' || ch.key === 'bookingUrl') && !d.product.contact.trim()) {
+  if ((ch.key === 'phone' || ch.key === 'bookingUrl' || ch.key === 'talkUrl') && !d.product.contact.trim()) {
     const s = d.studio;
-    d.product.contact = [s?.phone && `전화 ${s.phone}`, s?.bookingUrl].filter(Boolean).join(' · ');
+    d.product.contact = [s?.phone && `전화 ${s.phone}`, s?.bookingUrl, s?.talkUrl].filter(Boolean).join(' · ');
   }
 }
