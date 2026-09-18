@@ -301,6 +301,19 @@ export function onPublicAddress(): boolean {
   return !/^(localhost|127.0.0.1)$/.test(window.location.hostname);
 }
 
+/** 이 컴퓨터에서 함께 켠 검증용 collector가 준비됐는지 */
+export async function localCollectorReady(): Promise<boolean> {
+  if (onPublicAddress()) return false;
+  try {
+    const res = await fetch('/api/health');
+    if (!res.ok || !(res.headers.get('content-type') ?? '').includes('application/json')) return false;
+    const data = await res.json() as { service?: string };
+    return data.service === 'saypagemaker-collector';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 주소 하나를 읽어온다.
  *
