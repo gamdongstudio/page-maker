@@ -303,7 +303,8 @@ export default function App() {
           <img className="top__logo" src="/pagemaker-logo.png" alt="Page Maker" width={462} height={108} />
         </div>
 
-        <div className="top__title" title={project.title}>{project.title}</div>
+        {/* 로고만 보이게 — 작업 제목은 머리글에 쓰지 않는다 (자리만 남겨 오른쪽 단추 위치 유지). 새 상세페이지는 [작업 관리] 안에 있다 */}
+        <div className="top__title" aria-hidden="true" />
 
         <div className="top__actions">
           <SaveBadge state={saveState} />
