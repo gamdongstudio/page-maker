@@ -27,9 +27,14 @@ const SERVICE = 'saypagemaker-collector';
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 
-/* 이 컴퓨터 안에서만 쓴다 */
+/* 이 컴퓨터 안에서만 쓴다.
+   Vite가 5180이 아닌 5181/5182로 올라갈 수 있으므로 localhost 포트를 고정하지 않는다. */
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5180');
+  const origin = String(req.headers.origin ?? '');
+  if (/^http:\/\/(?:localhost|127\.0\.0\.1):\d+$/.test(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.end();
   return next();
