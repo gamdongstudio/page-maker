@@ -372,7 +372,7 @@ button,input,textarea,select{font-family:inherit}
 .menus{display:flex;flex-direction:column;gap:7px}
 .menu{border:1px solid var(--line);border-radius:10px;background:#fff}
 .menu.is-open{border-color:#c9d8ff}
-.menu.is-hidden{opacity:.5}
+/* 숨김 = 완성 페이지에서 안 보이는 것일 뿐, 고칠 수 없는 것이 아니다 — 흐리게 하지 않는다 */
 .menu[draggable="true"]{cursor:grab}
 .menu__head{display:flex;align-items:center;gap:8px;padding:9px 10px}
 .menu__grip{color:var(--ink-3);cursor:grab;font-size:13px;letter-spacing:-2px}

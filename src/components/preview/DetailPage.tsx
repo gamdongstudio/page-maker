@@ -61,7 +61,10 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
    * 저장 이미지(edit 없음)에서는 **내용이 없는 영역을 뺀다.**
    * 미리보기에서는 채울 수 있게 그대로 보여주고, 빠진다는 것을 작게 알린다.
    */
-  const visible = shownMenus(project);
+  const shown = shownMenus(project);
+  /* ③ 에서 숨김 섹션을 열어 고치는 동안에만 왼쪽에 임시로 보여준다 — 닫으면 다시 숨는다 (저장 이미지에는 없음) */
+  const peek = edit && selectedId ? project.menus.find((m) => m.id === selectedId && m.hidden) : undefined;
+  const visible = peek ? project.menus.filter((m) => m === peek || shown.includes(m)) : shown;
   const sidePad = narrow ? Math.min(d.padding, 20) : d.padding;
   const contentWidth = width - sidePad * 2;
   /** 최신 소식 이미지 바로 뒤의 이벤트 — 같은 이벤트라 한 묶음으로 붙여 보인다 */
@@ -88,6 +91,11 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
               dragId.current = null;
             } : undefined}
           >
+            {edit && menu.hidden && (
+              <span style={{ display: 'inline-block', fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#fff4d6', color: '#8a6100', marginBottom: 6 }}>
+                숨김 미리보기 · 완성 페이지에서는 보이지 않습니다
+              </span>
+            )}
             {/* 마우스를 올렸을 때만 보이는 작은 도구. 저장 이미지에는 들어가지 않는다 */}
             {edit && (
               <SectionBar

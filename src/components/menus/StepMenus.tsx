@@ -140,6 +140,7 @@ export function StepMenus({ focusMenuId, onFocused, onSelect }: {
                   {m.title}
                   {templateLabel(m.kind, m.template) && <em className="menu__tpl">{templateLabel(m.kind, m.template)}</em>}
                   {!hasContent(m, project) && <em className="menu__empty">비어 있음</em>}
+                  {m.hidden && <em className="menu__empty">숨김</em>}
                 </span>
                 <span aria-hidden="true" style={{ opacity: .5, padding: '0 4px' }}>{open ? '▴' : '▾'}</span>
                 <div className="menu__acts" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
