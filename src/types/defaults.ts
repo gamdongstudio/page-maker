@@ -22,7 +22,7 @@ export const MENU_CATALOG: { kind: MenuKind; title: string; body: string }[] = [
   { kind: 'discount',    title: '할인 혜택',        body: '' },
   { kind: 'intro',       title: '촬영상품 소개',     body: '' },
   { kind: 'recommend',   title: '이런 분께 추천',    body: '' },
-  { kind: 'benefit',     title: '촬영 구성',        body: '' },
+  { kind: 'benefit',     title: '주요 특징',        body: '' },
   { kind: 'feature',     title: '상세 특징',        body: '' },
   { kind: 'concept',     title: '콘셉트',          body: '' },
   { kind: 'scene',       title: '사용 장면',        body: '' },

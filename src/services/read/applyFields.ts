@@ -28,12 +28,22 @@ export function applyReadFields(d: ProjectData, fields: ReadField[]): StudioInfo
   setIf('hours', get('hours'));
   setIf('offDays', get('offDays'));
   setIf('bookingUrl', get('bookingUrl'));
+  setIf('placeUrl', get('placeUrl'));
+  setIf('talkUrl', get('talkUrl'));
+  setIf('intro', get('intro'));
   d.studio = studio;
 
   /* --- 무엇을 만들지 --- */
   d.shoot = { ...(d.shoot ?? EMPTY_BRIEF) };
-  if (get('productName')) d.shoot.productName = get('productName');
+  if (get('productName')) {
+    d.shoot.productName = get('productName');
+    if (!d.product.name.trim() || /^(기타|상품|촬영상품)$/i.test(d.product.name.trim())) d.product.name = get('productName');
+  }
   if (get('area')) d.shoot.area = get('area');
+  if (get('philosophy')) d.shoot.emphasis = get('philosophy');
+  if (get('shootingFields')) d.product.category = get('shootingFields');
+  if (get('features')) d.product.benefits = get('features');
+  if (get('intro') && !d.product.description.trim()) d.product.description = get('intro');
 
   /* --- 가격 --- */
   const listPrice = get('listPrice');
@@ -64,8 +74,12 @@ export function applyReadFields(d: ProjectData, fields: ReadField[]): StudioInfo
 
   /* --- 이벤트 --- */
   const period = get('eventPeriod');
-  if (period || (eventPrice && listPrice)) {
+  const eventTitle = get('eventTitle');
+  const eventBody = get('eventBody');
+  if (period || eventTitle || eventBody || (eventPrice && listPrice)) {
     d.event = { ...EMPTY_EVENT, ...(d.event ?? {}) };
+    if (eventTitle) d.event.title = eventTitle;
+    if (eventBody) d.event.body = eventBody;
     if (period) d.event.period = period;
     if (listPrice) d.event.listPrice = listPrice;
     if (eventPrice) d.event.eventPrice = eventPrice;
@@ -90,7 +104,7 @@ export function applyReadFields(d: ProjectData, fields: ReadField[]): StudioInfo
   }
 
   /* --- 문의 정보 (마지막 예약·문의에서 쓴다) --- */
-  const contact = [studio.phone, studio.bookingUrl].filter(Boolean).join(' · ');
+  const contact = [studio.phone, studio.bookingUrl, studio.talkUrl].filter(Boolean).join(' · ');
   if (contact) d.product.contact = contact;
   if (studio.name) d.product.brand = studio.name;
 

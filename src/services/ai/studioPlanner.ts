@@ -239,6 +239,8 @@ export function planStudioPage(project: ProjectData): StudioPlan {
   const shopName = (studio?.name || '').trim();
   const recipe = recipeFor(product);
   const wish = `${brief?.wish ?? ''} ${brief?.mood ?? ''} ${brief?.emphasis ?? ''}`.trim();
+  /* 강조점은 짧은 말일 때만 제목·문구에 끼워 넣는다. 스마트플레이스 촬영철학처럼 긴 글은 사진관 소개에 그대로 싣는다 */
+  const shortEmphasis = (brief?.emphasis ?? '').trim().length <= 20 ? (brief?.emphasis ?? '').trim() : '';
   const mood = brief?.mood?.trim() || moodFromWish(wish) || recipe.mood;
 
   /* ---- 사진 고르기 (새로 만들지 않는다. 있는 것 중에서 고른다) ----
@@ -256,6 +258,8 @@ export function planStudioPage(project: ProjectData): StudioPlan {
   want('recommend', !!prod.target.trim());
   want('howto', !!prod.howToUse.trim());
   want('caution', !!prod.caution.trim());
+  /* 실제로 가져온 이벤트가 있을 때만 이벤트 영역을 넣는다 */
+  want('event', !!(project.event?.title?.trim() || project.event?.eventPrice || project.event?.period));
   kinds = inPageOrder(kinds);
   if (/가격|혜택|할인|이벤트/.test(wish)) kinds = moveEarlier(kinds, ['event', 'perks', 'price']);
   if (/사진.*(많|위주)|갤러리/.test(wish)) kinds = moveEarlier(kinds, ['gallery']);
@@ -275,7 +279,7 @@ export function planStudioPage(project: ProjectData): StudioPlan {
     buildMenu(kind, {
       product, area, shopName, mood, recipe, project, spread, mainPhoto,
       portraitCount: photos.filter((ph) => shapeOf(ph) === 'portrait').length,
-      emphasis: brief?.emphasis ?? '',
+      emphasis: shortEmphasis,
     }),
   );
 
@@ -288,8 +292,8 @@ export function planStudioPage(project: ProjectData): StudioPlan {
     sourceLabel:
       '넣어주신 자료와 촬영상품을 규칙대로 정리한 결과입니다. (진짜 AI 연결 전 · 사진은 올리신 것을 고르기만 합니다)',
     productName: product,
-    searchTitles: searchTitles(product, area, shopName, recipe, brief?.emphasis ?? ''),
-    heroCopy: heroCopy(product, mood, area, brief?.emphasis ?? ''),
+    searchTitles: searchTitles(product, area, shopName, recipe, shortEmphasis),
+    heroCopy: heroCopy(product, mood, area, shortEmphasis),
     subCopy: subCopy(product, area, shopName),
     audience: recipe.audience,
     mainPhotoId: mainPhoto?.id ?? '',
@@ -456,7 +460,9 @@ function buildMenu(kind: MenuKind, c: Ctx): PlannedMenu {
 
     case 'intro': {
       const text = c.project.product.description.trim();
-      return { ...base, title: `${c.product} 소개`, body: text, hidden: !text };
+      /* 가져온 사진관 소개를 그대로 옮겨둔 것이면 '사진관 소개' 에서만 보여준다 (같은 글 두 번 금지) */
+      const same = !!text && text === (c.project.studio?.intro ?? '').trim();
+      return { ...base, title: `${c.product} 소개`, body: same ? '' : text, hidden: !text || same };
     }
 
     case 'howto': {
@@ -470,7 +476,10 @@ function buildMenu(kind: MenuKind, c: Ctx): PlannedMenu {
     }
 
     case 'brand': {
-      const text = (c.project.studio?.intro ?? '').trim();
+      /* 긴 촬영철학(가져온 원문)은 소개 아래 그대로 싣는다 — 짧은 강조점은 제목·문구에서 이미 쓴다 */
+      const intro = (c.project.studio?.intro ?? '').trim();
+      const philosophy = c.emphasis ? '' : (c.project.shoot?.emphasis ?? '').trim();
+      const text = [intro, philosophy && `촬영 철학\n${philosophy}`].filter(Boolean).join('\n\n');
       return { ...base, title: c.shopName ? `${c.shopName} 소개` : '사진관 소개', body: text, hidden: !text };
     }
 
@@ -644,6 +653,8 @@ export function pickMainPhoto(photos: Photo[]): Photo | null {
   if (photos.length === 0) return null;
   const chosen = photos.find((p) => p.kind === 'main');
   if (chosen) return chosen;
+  /* 스마트플레이스에서 가져온 사진은 업체가 올린 순서대로 — 첫 업체 사진이 대표 */
+  if (photos[0].source === 'place') return photos[0];
   /* 가로 사진이 대문에 안정적이다. 없으면 첫 사진. */
   return photos.find((p) => shapeOf(p) === 'landscape') ?? photos[0];
 }

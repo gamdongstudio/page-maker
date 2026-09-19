@@ -27,7 +27,8 @@ export function autoPhotosFor(menu: MenuItem, project: ProjectData): Photo[] {
 
   switch (menu.kind) {
     case 'main':    return byKind('main').slice(0, 1);
-    case 'gallery': return pool.filter((p) => p.kind !== 'main' && p.kind !== 'unused').slice(0, 6);
+    /* 갤러리는 촬영 작품만 — '가격·혜택'(이벤트·가격표) 이미지는 넣지 않는다 */
+    case 'gallery': return pool.filter((p) => p.kind !== 'main' && p.kind !== 'unused' && p.kind !== 'event').slice(0, 6);
     case 'review':  return byKind('review').slice(0, 3);
     case 'event':   return byKind('event').slice(0, 2);
     case 'concept':

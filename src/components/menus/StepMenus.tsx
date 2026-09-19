@@ -120,7 +120,20 @@ export function StepMenus({ focusMenuId, onFocused, onSelect }: {
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => { if (dragId.current) move(dragId.current, m.id); dragId.current = null; }}
             >
-              <div className="menu__head">
+              {/* 제목 줄 전체를 누르면 열고, 다시 누르면 닫는다. 다른 메뉴를 열면 이전 메뉴는 닫힌다 (한 번에 하나) */}
+              <div
+                className="menu__head"
+                role="button"
+                tabIndex={0}
+                aria-expanded={open}
+                style={{ cursor: 'pointer' }}
+                onClick={() => setEditId(open ? null : m.id)}
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+                  e.preventDefault();
+                  setEditId(open ? null : m.id);
+                }}
+              >
                 <span className="menu__grip" title="끌어서 순서를 바꿀 수 있어요">⠿</span>
                 <span className="menu__no">{i + 1}</span>
                 <span className="menu__title">
@@ -128,8 +141,8 @@ export function StepMenus({ focusMenuId, onFocused, onSelect }: {
                   {templateLabel(m.kind, m.template) && <em className="menu__tpl">{templateLabel(m.kind, m.template)}</em>}
                   {!hasContent(m, project) && <em className="menu__empty">비어 있음</em>}
                 </span>
-                <div className="menu__acts">
-                  <button className="tiny" onClick={() => setEditId(open ? null : m.id)}>{open ? '닫기' : '편집'}</button>
+                <span aria-hidden="true" style={{ opacity: .5, padding: '0 4px' }}>{open ? '▴' : '▾'}</span>
+                <div className="menu__acts" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                   <button className="tiny" onClick={() => duplicate(m.id)}>복제</button>
                   <button className="tiny" onClick={() => patch(m.id, { hidden: !m.hidden }, 'menu.hide')}>
                     {m.hidden ? '보이기' : '숨기기'}

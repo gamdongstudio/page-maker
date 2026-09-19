@@ -79,6 +79,11 @@ export function StepRecommend({ onNext }: { onNext: () => void }) {
         if (m.kind === 'main' || m.kind === 'cta') return;
         if (!hasContent(m, d)) m.hidden = true;
       });
+      /* 가져온 사진관 소개가 상품 설명에도 그대로 들어간 경우 — 같은 글이 두 번 나오지 않게 '사진관 소개' 에서만 보여준다 */
+      const desc = d.product.description.trim();
+      if (desc && desc === (d.studio?.intro ?? '').trim() && d.menus.some((m) => m.kind === 'brand' && !m.hidden)) {
+        d.menus.forEach((m) => { if (m.kind === 'intro') m.hidden = true; });
+      }
 
       if (d.shoot?.productName && (!d.title || d.title === '새 상세페이지')) {
         d.title = `${d.shoot.productName} 상세페이지`;

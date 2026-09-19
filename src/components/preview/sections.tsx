@@ -424,7 +424,18 @@ export function PerksSection({ menu, project, titleStyle, bodyStyle, boxWidth }:
 /* 가격                                                                */
 /* ------------------------------------------------------------------ */
 
-export function PriceSection({ menu, project, titleStyle, bodyStyle }: SectionProps) {
+/** 가격 안내 — 이 섹션에 직접 고른 사진(예: GPT로 만든 가격표 이미지)이 있으면 아래에 보여준다 */
+export function PriceSection(props: SectionProps) {
+  const photos = props.menu.photoIds.length ? photosOf(props.menu, props.project) : [];
+  return (
+    <div>
+      <PriceSectionBody {...props} />
+      <MorePhotos photos={photos} from={0} boxWidth={props.boxWidth} radius={props.project.design.photoRadius} />
+    </div>
+  );
+}
+
+function PriceSectionBody({ menu, project, titleStyle, bodyStyle }: SectionProps) {
   const d = project.design;
   const tpl = menu.template ?? 'A';
   const pr = project.pricing;
@@ -439,8 +450,12 @@ export function PriceSection({ menu, project, titleStyle, bodyStyle }: SectionPr
     ['추가 인원', pr?.extraPerson], ['주말 추가', pr?.weekendExtra],
     /* '기타' 에는 여러 줄이 들어올 수 있다 (링크로 가져온 가격표 등).
        한 칸에 몰아 넣으면 줄바꿈이 사라져 길게 이어 붙으므로 줄마다 한 칸씩 보여준다 */
+    /* '상품명 25,000원' 처럼 적힌 줄은 실제 이름과 금액으로 나눈다 — '기타' 같은 임시 이름은 쓰지 않는다 */
     ...(pr?.etcExtra || '').split('\n').map((s) => s.trim()).filter(Boolean)
-      .map((s) => ['기타', s] as [string, string | undefined]),
+      .map((s) => {
+        const m = s.match(/^(.+?)\s+([\d,]+\s*원)$/);
+        return (m ? [m[1], m[2]] : ['', s]) as [string, string | undefined];
+      }),
   ].filter(([, v]) => !!v) as [string, string][];
 
   if (!list && !sale && includes.length === 0 && extras.length === 0) {
@@ -471,7 +486,7 @@ export function PriceSection({ menu, project, titleStyle, bodyStyle }: SectionPr
           border: `2px solid ${d.primary}`, borderRadius: d.photoRadius || 12, overflow: 'hidden',
         }}>
           <div style={{ background: d.primary, color: pickReadable(d.primary), padding: '14px 18px' }}>
-            <b style={{ fontSize: d.bodySize + 2 }}>{pr?.people ? withGijun(pr.people) : '기본 패키지'}</b>
+            <b style={{ fontSize: d.bodySize + 2 }}>{prod.name?.trim() || (pr?.people ? withGijun(pr.people) : '기본 패키지')}</b>
           </div>
           <div style={{ padding: '18px' }}>
             {sale && <p style={{ margin: '0 0 14px', fontSize: d.titleSize, fontWeight: 800 }}>{sale}</p>}

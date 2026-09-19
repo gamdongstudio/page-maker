@@ -22,6 +22,8 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
   const { project, update } = useProject();
   const p = project.product;
   const [studioOpen, setStudioOpen] = useState(false);
+  const [gptPrompt, setGptPrompt] = useState('');
+  const [gptCopied, setGptCopied] = useState(false);
 
   const set = (key: keyof ProductInfo, label = key) => (v: string) =>
     update((d) => {
@@ -81,6 +83,39 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
         label="상품 구성" value={project.pricing?.includes ?? ''} onChange={setIncludes} multiline rows={3}
         placeholder={'한 줄에 하나씩\n예) 원본 전체 제공\n보정본 2장\n11x14 액자'}
       />
+
+      {mode === 'edit' && (
+        <section className="box">
+          <h3 className="box__title">GPT로 홍보 이미지 만들기</h3>
+          <p className="box__hint">현재 입력된 가격·이벤트 정보로 프롬프트만 만들어드립니다. PageMaker가 이미지를 임의로 만들거나 갤러리에 넣지는 않습니다.</p>
+          <div className="srcacts">
+            <button className="btn btn--line" onClick={() => { setGptPrompt(pricePrompt(project)); setGptCopied(false); }}>
+              GPT로 가격표 만들기
+            </button>
+            <button className="btn btn--line" onClick={() => { setGptPrompt(eventPrompt(project)); setGptCopied(false); }}>
+              GPT로 이벤트 이미지 만들기
+            </button>
+          </div>
+          {gptPrompt && (
+            <div className="stack">
+              <textarea className="field__input" rows={8} readOnly value={gptPrompt} aria-label="GPT 이미지 제작 프롬프트" />
+              <div className="srcacts">
+                <button className="btn btn--line" onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(gptPrompt);
+                    setGptCopied(true);
+                  } catch {
+                    setGptCopied(false);
+                  }
+                }}>{gptCopied ? '복사됨' : '프롬프트 복사'}</button>
+                <button className="btn btn--main" onClick={() => window.open('https://chatgpt.com/', '_blank', 'noopener,noreferrer')}>
+                  ChatGPT 열기
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
       <Field
         label="상품 설명" value={val('description')} onChange={set('description')} multiline rows={3}
         placeholder="상품을 자세히 소개해주세요"
@@ -135,6 +170,45 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
       </section>
     </div>
   );
+}
+
+function pricePrompt(project: ReturnType<typeof useProject>['project']): string {
+  const s = project.studio;
+  const pr = project.pricing;
+  const name = project.product.name || project.shoot?.productName || '촬영상품';
+  return [
+    '사진관 상세페이지에 사용할 세련된 가격표 이미지를 만들어줘.',
+    '이미지 안의 숫자와 상품명은 아래 내용을 정확히 사용하고 임의로 바꾸지 마.',
+    `사진관: ${s?.name || '미입력'}`,
+    `상품명: ${name}`,
+    `정상가: ${project.product.listPrice || pr?.listPrice || '없음'}`,
+    `판매가/이벤트가: ${project.product.salePrice || pr?.eventPrice || '없음'}`,
+    `상품 구성:\n${pr?.includes || '미입력'}`,
+    project.product.description ? `설명:\n${project.product.description}` : '',
+    pr?.etcExtra ? `다른 상품 가격:\n${pr.etcExtra}` : '',
+    '첨부한 사진관 사진을 배경·분위기에 사용해줘.',
+    '세로형 상세페이지 이미지로, 상품별 가격을 비교하기 쉬운 카드형으로 구성해줘.',
+    '상품명과 가격은 위 내용 그대로 쓰고, 한글·숫자를 임의로 바꾸거나 새로 만들지 마.',
+    '과장 문구 없이 따뜻하고 고급스러운 사진관 느낌으로 만들어줘.',
+  ].filter(Boolean).join('\n');
+}
+
+function eventPrompt(project: ReturnType<typeof useProject>['project']): string {
+  const s = project.studio;
+  const ev = project.event;
+  return [
+    '사진관 상세페이지와 SNS에 사용할 이벤트 홍보 이미지를 만들어줘.',
+    '아래 실제 정보만 사용하고 이벤트명·기간·가격을 임의로 만들거나 바꾸지 마.',
+    `사진관: ${s?.name || '미입력'}`,
+    `이벤트명: ${ev?.title || '미입력'}`,
+    `기간: ${ev?.period || '미입력'}`,
+    `정상가: ${ev?.listPrice || project.product.listPrice || '없음'}`,
+    `이벤트가: ${ev?.eventPrice || project.product.salePrice || '없음'}`,
+    `이벤트 내용:\n${ev?.body || '미입력'}`,
+    (project.perks ?? []).length ? `혜택:\n${(project.perks ?? []).map((x) => (x.body ? `${x.title} — ${x.body}` : x.title)).join('\n')}` : '',
+    '첨부한 사진관 사진을 사용해줘.',
+    '일반 공지처럼 보이지 않게 핵심 혜택이 한눈에 보이도록 하되, 없는 혜택은 추가하지 마.',
+  ].filter(Boolean).join('\n');
 }
 
 /**
