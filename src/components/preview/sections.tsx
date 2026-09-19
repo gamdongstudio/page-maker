@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import type { MenuItem, Photo, ProjectData } from '@/types/project';
 import { photoStyle } from '@/utils/image';
 import { photosOf } from '@/utils/menuPhotos';
+import { fieldProducts, splitPriceLine } from '@/services/ai/studioPlanner';
 import { formatWon, pickReadable, shade } from '@/utils/format';
 import { Editable } from './Editable';
 import type { PreviewEdit } from './editApi';
@@ -118,12 +119,12 @@ export function EventSection({ menu, project, titleStyle, bodyStyle, boxWidth }:
         background: d.primary, color: pickReadable(d.primary),
         borderRadius: d.photoRadius, padding: '26px 22px', textAlign: 'center',
       }}>
+        <h2 style={{ ...titleStyle, color: pickReadable(d.primary), margin: '0 0 10px' }}>{name}</h2>
         {ev?.period && (
           <p style={{ margin: '0 0 8px', fontSize: d.bodySize - 1, opacity: .9, letterSpacing: 1 }}>
             {ev.period}
           </p>
         )}
-        <h2 style={{ ...titleStyle, color: pickReadable(d.primary), margin: '0 0 10px' }}>{name}</h2>
         {sale && <p style={{ margin: 0, fontSize: d.titleSize + 2, fontWeight: 800 }}>{sale}</p>}
         {body && <p style={{ ...bodyStyle, color: pickReadable(d.primary), marginTop: 10, opacity: .92 }}>{body}</p>}
       </div>
@@ -137,12 +138,12 @@ export function EventSection({ menu, project, titleStyle, bodyStyle, boxWidth }:
         border: `1px solid ${shade(d.text, 55)}`, borderRadius: d.photoRadius,
         padding: '28px 24px', textAlign: 'center',
       }}>
+        <h2 style={{ ...titleStyle, margin: '0 0 14px' }}>{name}</h2>
         {ev?.period && (
           <p style={{ margin: '0 0 12px', fontSize: d.bodySize - 3, letterSpacing: 3, color: d.primary }}>
             {ev.period}
           </p>
         )}
-        <h2 style={{ ...titleStyle, margin: '0 0 14px' }}>{name}</h2>
         <div style={{ width: 40, height: 1, background: shade(d.text, 40), margin: '0 auto 14px' }} />
         {sale && (
           <p style={{ margin: 0, fontSize: d.titleSize, fontWeight: 700 }}>
@@ -182,8 +183,8 @@ export function EventSection({ menu, project, titleStyle, bodyStyle, boxWidth }:
               position: 'absolute', left: 0, right: 0, bottom: 0,
               padding: '22px 20px', color: '#fff', textAlign: 'center',
             }}>
-              {ev?.period && <p style={{ margin: '0 0 6px', fontSize: d.bodySize - 2, opacity: .9 }}>{ev.period}</p>}
               <h2 style={{ ...titleStyle, color: '#fff', margin: '0 0 8px' }}>{name}</h2>
+              {ev?.period && <p style={{ margin: '0 0 6px', fontSize: d.bodySize - 2, opacity: .9 }}>{ev.period}</p>}
               {body && (
                 <p style={{ ...bodyStyle, color: '#fff', margin: '0 0 10px', opacity: .92, fontSize: d.bodySize - 1 }}>
                   {body}
@@ -254,12 +255,12 @@ export function EventSection({ menu, project, titleStyle, bodyStyle, boxWidth }:
   return (
     <div>
       <h2 style={titleStyle}>{name}</h2>
+      {ev?.period && <p style={{ margin: '0 0 6px', fontSize: d.bodySize - 1, opacity: .75 }}>{ev.period}</p>}
       {percent > 0 ? (
         <p style={{ margin: '0 0 8px', fontSize: d.titleSize + 16, fontWeight: 900, color: d.primary, lineHeight: 1 }}>
           {percent}%
         </p>
       ) : null}
-      {ev?.period && <p style={{ margin: '0 0 6px', fontSize: d.bodySize - 1, opacity: .75 }}>{ev.period}</p>}
       {(list || sale) && (
         <p style={{ margin: 0, fontSize: d.bodySize + 4 }}>
           {list && <span style={{ opacity: .45, textDecoration: 'line-through', marginRight: 10 }}>{list}</span>}
@@ -455,10 +456,14 @@ function PriceSectionBody({ menu, project, titleStyle, bodyStyle }: SectionProps
   const tpl = menu.template ?? 'A';
   const pr = project.pricing;
   const prod = project.product;
-  const list = formatWon(pr?.listPrice || prod.listPrice);
-  const sale = formatWon(pr?.eventPrice || prod.salePrice);
-  const percent = discountPercent(pr?.listPrice || prod.listPrice, pr?.eventPrice || prod.salePrice);
-  const includes = (pr?.includes || '').split('\n').map((s) => s.trim()).filter(Boolean);
+  /* 고른 촬영분야의 상품만 보여준다 (원본 상품 데이터는 그대로) */
+  const fp = fieldProducts(project);
+  const repMain = !fp.rep || fp.rep.main;
+  const useMain = fp.matched && repMain;
+  const list = useMain ? formatWon(pr?.listPrice || prod.listPrice) : '';
+  const sale = !fp.matched ? '' : repMain ? formatWon(pr?.eventPrice || prod.salePrice) : fp.rep!.price;
+  const percent = useMain ? discountPercent(pr?.listPrice || prod.listPrice, pr?.eventPrice || prod.salePrice) : 0;
+  const includes = useMain ? (pr?.includes || '').split('\n').map((s) => s.trim()).filter(Boolean) : [];
   const extras = [
     ['액자', pr?.frame], ['수정본', pr?.retouch], ['원본 제공', pr?.rawFiles],
     ['의상', pr?.costume], ['헤어·메이크업', pr?.hairMakeup],
@@ -466,15 +471,14 @@ function PriceSectionBody({ menu, project, titleStyle, bodyStyle }: SectionProps
     /* '기타' 에는 여러 줄이 들어올 수 있다 (링크로 가져온 가격표 등).
        한 칸에 몰아 넣으면 줄바꿈이 사라져 길게 이어 붙으므로 줄마다 한 칸씩 보여준다 */
     /* '상품명 25,000원' 처럼 적힌 줄은 실제 이름과 금액으로 나눈다 — '기타' 같은 임시 이름은 쓰지 않는다 */
-    ...(pr?.etcExtra || '').split('\n').map((s) => s.trim()).filter(Boolean)
-      .map((s) => {
-        const m = s.match(/^(.+?)\s+([\d,]+\s*원)$/);
-        return (m ? [m[1], m[2]] : ['', s]) as [string, string | undefined];
-      }),
+    ...(fp.field
+      ? fp.others.map((o) => [o.name, o.price] as [string, string | undefined])
+      : (pr?.etcExtra || '').split('\n').map((s) => s.trim()).filter(Boolean)
+        .map((s) => (splitPriceLine(s) ?? ['', s]) as [string, string | undefined])),
   ].filter(([, v]) => !!v) as [string, string][];
   /* 대표 상품의 실제 이름 — 금액만 있으면 어느 상품 가격인지 알 수 없으므로 제목 아래에 보여준다 (카드형 B 는 머리에 이미 있음) */
   /* 메인 제목(product.name)과 따로 — 가져오거나 고른 실제 상품명을 먼저 쓴다 */
-  const itemName = (project.shoot?.productName || prod.name || '').trim();
+  const itemName = (fp.field ? (fp.rep?.name ?? '') : (project.shoot?.productName || prod.name || '')).trim();
   const nameLine = itemName
     ? <p style={{ margin: '0 0 6px', fontWeight: 700, fontSize: d.bodySize + 2 }}>{itemName}</p>
     : null;
@@ -483,7 +487,9 @@ function PriceSectionBody({ menu, project, titleStyle, bodyStyle }: SectionProps
     return (
       <div>
         <h2 style={titleStyle}>{menu.title}</h2>
-        <Empty text="가격을 넣으면 여기에 보입니다. (확인이 필요한 값이라 비워뒀습니다)" />
+        <Empty text={fp.field && !fp.matched
+          ? `${fp.field} 관련 상품을 자동으로 찾지 못했습니다. 가격 안내 편집에서 상품을 골라주세요.`
+          : '가격을 넣으면 여기에 보입니다. (확인이 필요한 값이라 비워뒀습니다)'} />
       </div>
     );
   }

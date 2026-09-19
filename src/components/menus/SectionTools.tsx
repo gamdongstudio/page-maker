@@ -4,7 +4,7 @@ import { PHOTO_KIND_LABEL, type FontKey, type MenuItem, type PricePackage } from
 import { FONT_KEYS, FONTS } from '@/config/fonts';
 import { uid } from '@/types/defaults';
 import { templatesFor } from '@/components/preview/templates';
-import { planStudioPage, type PlannedMenu, type StudioPlan } from '@/services/ai/studioPlanner';
+import { fieldProducts, planStudioPage, type PlannedMenu, type StudioPlan } from '@/services/ai/studioPlanner';
 import { regenerateMenu } from '@/services/ai/applyPlan';
 import { EMPTY_BRIEF } from '@/types/project';
 import { EMPTY_EVENT, EMPTY_PRICING } from '@/types/studio';
@@ -117,6 +117,8 @@ export function SectionTools({ menu }: { menu: MenuItem }) {
         {/* 가격표·상품 비교 — 촬영상품을 여러 개 만든다 */}
         {usesPackages(menu) && <PackageEditor />}
         {menu.kind === 'price' && <PriceFields />}
+        {/* GPT로 가격표 만들기 — 상품 구성 바로 아래, 사진(가격표 이미지)보다 위 */}
+        {menu.kind === 'price' && <GptPromptBox kind="price" />}
         {menu.kind === 'event' && <EventFields />}
       </div>
 
@@ -173,7 +175,6 @@ export function SectionTools({ menu }: { menu: MenuItem }) {
       </div>
 
       {/* 4. GPT 도구 */}
-      {menu.kind === 'price' && <GptPromptBox kind="price" />}
       {menu.kind === 'event' && <GptPromptBox kind="event" />}
 
       {/* 5. 자동 추천 다시 받기 — 작은 보조 단추. 후보를 보고 고를 때만 바꾼다 */}
@@ -202,8 +203,25 @@ export function SectionTools({ menu }: { menu: MenuItem }) {
 function PriceFields() {
   const { project, update } = useProject();
   const p = project.product;
+  const fp = fieldProducts(project);
   return (
     <div className="stack">
+      {fp.field && <p className="field__hint">촬영분야: <b>{fp.field}</b> — 이 분야 상품만 가격 안내에 보입니다. (다른 상품은 지우지 않고 보관)</p>}
+      {fp.field && !fp.matched && (
+        <p className="note note--warn">{fp.field} 관련 상품을 자동으로 찾지 못했습니다. 아래에서 직접 골라주세요.</p>
+      )}
+      {fp.all.length > 1 && (
+        <label className="field">
+          <span className="field__label">대표 상품</span>
+          <select
+            className="mini" value={project.shoot?.pickedProduct ?? ''}
+            onChange={(e) => { const v = e.target.value; update((d) => { d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), pickedProduct: v }; }, { label: 'shoot.pickedProduct', merge: false }); }}
+          >
+            <option value="">자동 — {fp.rep ? fp.rep.name : '맞는 상품 없음'}</option>
+            {fp.all.map((x) => <option key={x.name} value={x.name}>{x.name} {x.price}</option>)}
+          </select>
+        </label>
+      )}
       <label className="field">
         <span className="field__label">상품 (실제 상품명)</span>
         <input

@@ -4,6 +4,7 @@ import { EMPTY_BRIEF, type ProductInfo } from '@/types/project';
 import { EMPTY_PRICING, EMPTY_STUDIO, type ShootProduct, type StudioInfo } from '@/types/studio';
 import { loadShootProducts, saveShootProducts } from '@/services/storage/studio';
 import { setPrice } from '@/utils/photoOps';
+import { FIELD_NAMES, fieldProducts } from '@/services/ai/studioPlanner';
 import { isLinked, linkedValue, revealWhenFilled, setLinked } from './sectionText';
 import { Field } from '@/components/editor/Fields';
 import { StudioForm } from '@/components/studio/StudioForm';
@@ -214,18 +215,21 @@ export function GptPromptBox({ kind }: { kind: 'price' | 'event' }) {
 function pricePrompt(project: ReturnType<typeof useProject>['project']): string {
   const s = project.studio;
   const pr = project.pricing;
-  /* 메인 제목이 아니라 실제 상품명을 먼저 쓴다 */
-  const name = project.shoot?.productName || project.product.name || '촬영상품';
+  /* 고른 촬영분야의 상품만 (다른 분야 상품은 넣지 않는다) */
+  const fp = fieldProducts(project);
+  const rep = fp.rep;
+  const repMain = !rep || rep.main;
+  const name = rep?.name || fp.field || project.shoot?.productName || project.product.name || '촬영상품';
   return [
     '사진관 상세페이지에 사용할 세련된 가격표 이미지를 만들어줘.',
     '이미지 안의 숫자와 상품명은 아래 내용을 정확히 사용하고 임의로 바꾸지 마.',
     `사진관: ${s?.name || '미입력'}`,
     `상품명: ${name}`,
-    `정상가: ${project.product.listPrice || pr?.listPrice || '없음'}`,
-    `판매가/이벤트가: ${project.product.salePrice || pr?.eventPrice || '없음'}`,
-    `상품 구성:\n${pr?.includes || '미입력'}`,
+    `정상가: ${(repMain && fp.matched && (project.product.listPrice || pr?.listPrice)) || '없음'}`,
+    `판매가/이벤트가: ${!fp.matched ? '없음' : repMain ? (project.product.salePrice || pr?.eventPrice || '없음') : rep!.price}`,
+    `상품 구성:\n${(repMain && fp.matched && pr?.includes) || '미입력'}`,
     project.product.description ? `설명:\n${project.product.description}` : '',
-    pr?.etcExtra ? `다른 상품 가격:\n${pr.etcExtra}` : '',
+    fp.others.length ? `다른 상품 가격:\n${fp.others.map((o) => `${o.name} ${o.price}`).join('\n')}` : '',
     '첨부한 사진관 사진을 배경·분위기에 사용해줘.',
     '세로형 상세페이지 이미지로, 상품별 가격을 비교하기 쉬운 카드형으로 구성해줘.',
     '상품명과 가격은 위 내용 그대로 쓰고, 한글·숫자를 임의로 바꾸거나 새로 만들지 마.',
@@ -263,12 +267,15 @@ function ProductKind() {
 
   const pick = (name: string) =>
     update((d) => {
-      d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), productName: name };
+      const cur = (d.shoot?.productName ?? '').trim();
+      /* 가져온 실제 상품명(예: 가족사진 기본촬영(4인이하))은 그대로 두고, 분야 이름뿐일 때만 바꾼다 */
+      const keep = !!cur && !FIELD_NAMES.includes(cur) && cur !== d.shoot?.field;
+      d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), productName: keep ? cur : name, field: name, pickedProduct: '' };
       /*
        * 상품 종류만 정한다. 상품명·한 줄 소개는 채우지 않는다.
        * (예전에는 상품명에 '가족사진' 만 들어가서 자동 추천이 제목을 만들지 못했다)
        */
-      if (!d.product.category.trim()) d.product.category = name;
+      d.product.category = name;
       if (!d.title || d.title === '새 상세페이지') d.title = `${name} 상세페이지`;
     }, { label: 'shoot.product', merge: false });
 
@@ -278,7 +285,7 @@ function ProductKind() {
       <ShootProducts
         list={list}
         onChange={(next) => { setList(next); void saveShootProducts(next); }}
-        picked={project.shoot?.productName ?? ''}
+        picked={project.shoot?.field || project.shoot?.productName || ''}
         onPick={pick}
       />
     </div>

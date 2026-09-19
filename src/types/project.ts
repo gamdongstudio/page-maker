@@ -363,6 +363,10 @@ export interface ShootBrief {
   mood: string;         // 원하는 분위기
   emphasis: string;     // 강조할 내용
   wish: string;         // 한 줄 요청 / 상세 프롬프트
+  /** ① 에서 고른 촬영분야 (가족사진 …) — 이 분야 상품만 가격 안내에 쓴다. 가져온 실제 상품명(productName)과 따로 둔다 */
+  field?: string;
+  /** 가격 안내에서 사용자가 직접 고른 대표 상품 이름 (없으면 분야에 맞는 첫 상품) */
+  pickedProduct?: string;
 }
 
 export const EMPTY_BRIEF: ShootBrief = {

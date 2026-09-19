@@ -238,7 +238,9 @@ function listOf(text: string): string[] {
 export function planStudioPage(project: ProjectData): StudioPlan {
   const brief = project.shoot;
   const studio = project.studio;
-  const product = (brief?.productName || '촬영').trim();
+  /* 고른 촬영분야가 있으면 그 분야의 대표 상품 기준 (다른 분야 상품이 제목에 쓰이지 않게) */
+  const fp = fieldProducts(project);
+  const product = ((fp.field ? (fp.rep?.name || fp.field) : '') || brief?.productName || '촬영').trim();
   const area = (brief?.area || studio?.area || '').trim();
   const shopName = (studio?.name || '').trim();
   const recipe = recipeFor(product);
@@ -666,6 +668,59 @@ export function shootField(product: string): string {
   const p = (product || '').trim();
   if (!p || p === '촬영') return '';
   return FIELD_WORDS.find(([re]) => re.test(p))?.[1] ?? p;
+}
+
+/** 촬영분야 이름 목록 */
+export const FIELD_NAMES = FIELD_WORDS.map(([, n]) => n);
+
+export interface FieldProduct { name: string; price: string; includes: string; main: boolean }
+
+/** '상품명 25,000원' 한 줄 → [이름, 금액] */
+export function splitPriceLine(line: string): [string, string] | null {
+  const m = line.trim().match(/^(.+?)\s+([\d,]+\s*원)$/);
+  return m ? [m[1], m[2]] : null;
+}
+
+/** 가져오거나 적어둔 상품 전체 — 대표 상품 + 그 밖의 가격 줄. 원본 데이터는 건드리지 않는다 */
+export function allProducts(p: ProjectData): FieldProduct[] {
+  const out: FieldProduct[] = [];
+  const main = (p.shoot?.productName ?? '').trim();
+  const won = (p.product.salePrice || p.pricing?.eventPrice || p.product.listPrice || p.pricing?.listPrice || '').replace(/[^\d]/g, '');
+  if (main) out.push({ name: main, price: won ? Number(won).toLocaleString('ko-KR') + '원' : '', includes: p.pricing?.includes ?? '', main: true });
+  (p.pricing?.etcExtra ?? '').split('\n').forEach((l) => {
+    const x = splitPriceLine(l);
+    if (x) out.push({ name: x[0], price: x[1], includes: '', main: false });
+  });
+  return out;
+}
+
+/** 이번 상세페이지의 촬영분야 — ① 에서 고른 값, 없으면 촬영분야 칸(분야 이름일 때만) */
+export function selectedField(p: ProjectData): string {
+  const picked = (p.shoot?.field ?? '').trim();
+  if (picked) return shootField(picked);
+  const c = (p.product.category ?? '').trim();
+  return FIELD_NAMES.includes(c) ? c : '';
+}
+
+/**
+ * 이번 상세페이지에 쓸 상품 — 고른 촬영분야와 분명히 맞는 상품만 (판별은 제목과 같은 shootField 규칙).
+ * 애매한 이름은 넣지 않고, 맞는 상품이 없으면 다른 분야 상품으로 채우지 않는다.
+ * 가격 안내 · 메인 가격 · GPT 가격표가 모두 이것 하나를 쓴다.
+ */
+export function fieldProducts(p: ProjectData): {
+  field: string; rep: FieldProduct | null; others: FieldProduct[]; matched: boolean; all: FieldProduct[];
+} {
+  const all = allProducts(p);
+  const field = selectedField(p);
+  const pickedName = (p.shoot?.pickedProduct ?? '').trim();
+  const picked = pickedName ? all.find((x) => x.name === pickedName) : undefined;
+  if (!field) {
+    const rep = picked ?? all.find((x) => x.main) ?? null;
+    return { field, rep, others: all.filter((x) => x !== rep), matched: true, all };
+  }
+  const hit = all.filter((x) => shootField(x.name) === field);
+  const rep = picked ?? hit[0] ?? null;
+  return { field, rep, others: hit.filter((x) => x !== rep), matched: !!rep, all };
 }
 
 /** 지역은 맨 앞에 한 번만 */

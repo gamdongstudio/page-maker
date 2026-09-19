@@ -3,6 +3,7 @@ import { SMARTSTORE_DETAIL_WIDTH } from '@/config/smartstore';
 import { FONT_LABEL, type MenuItem, type ProjectData } from '@/types/project';
 import { heroBoxHeight, photoStyle, shapeOf } from '@/utils/image';
 import { photosOf } from '@/utils/menuPhotos';
+import { fieldProducts } from '@/services/ai/studioPlanner';
 import { ownsPhotos } from './templates';
 import {
   BenefitSection, ConceptSection, EventSection, FreeSection, GallerySection,
@@ -606,6 +607,16 @@ function PriceRow({ project, big = false, edit }: {
 }) {
   const d = project.design;
   const { listPrice, salePrice } = project.product;
+  /* 고른 촬영분야의 대표 상품이 다른 상품이면 그 가격을, 맞는 상품이 없으면 가격을 보여주지 않는다 */
+  const fp = fieldProducts(project);
+  if (fp.field && !fp.matched) return null;
+  if (fp.rep && !fp.rep.main) {
+    return (
+      <div style={{ marginTop: 18, textAlign: d.align }}>
+        <span style={{ fontWeight: 800, fontSize: big ? 32 : 24 }}>{fp.rep.price}</span>
+      </div>
+    );
+  }
   if (!listPrice && !salePrice) return null;
 
   const list = formatWon(listPrice);
