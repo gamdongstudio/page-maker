@@ -299,7 +299,11 @@ export function planStudioPage(project: ProjectData): StudioPlan {
       '넣어주신 자료와 촬영상품을 규칙대로 정리한 결과입니다. (진짜 AI 연결 전 · 사진은 올리신 것을 고르기만 합니다)',
     /* 촬영분야 — 실제 상품명('가족사진 기본촬영(4인이하)')에서 분야 이름만 ('가족사진') */
     productName: shootField(product) || product,
-    searchTitles: searchTitles(product, area),
+    /* 구체적인 서비스 문구는 실제 자료에 적혀 있을 때만 */
+    searchTitles: searchTitles(product, area, [
+      project.studio?.intro, project.product.benefits, project.product.description,
+      project.pricing?.etcExtra, project.pricing?.includes, brief?.productName,
+    ].filter(Boolean).join('\n')),
     productTitle: productInfoTitle(product, area),
     heroCopy: heroCopy(shootField(product) || product, mood, area, shortEmphasis),
     subCopy: subCopy(product, area, shopName),
@@ -634,12 +638,24 @@ const FIELD_POINTS: Record<string, string[]> = {
   프로필사진: ['개인·비즈니스 프로필 촬영', '취업·업무용 프로필 촬영', '상반신·전신 프로필 촬영'],
   취업사진: ['면접·입사지원서 사진 촬영', '업종별 단정한 취업사진 촬영', '이력서용 취업사진 촬영'],
   반려동물사진: ['반려견·반려묘 기념촬영', '보호자와 함께하는 반려동물 촬영', '반려동물 프로필 촬영'],
-  장수사진: ['부모님 장수사진 촬영', '장수·영정 액자 촬영', '편안한 분위기의 장수사진 촬영'],
-  복원사진: ['오래된 사진 복원', '훼손된 사진 복원·보정', '가족사진 복원·인화'],
-  스냅사진: ['행사·야외 스냅 촬영', '돌잔치·행사 스냅 촬영', '자연스러운 순간 스냅 촬영'],
-  웨딩사진: ['웨딩 스튜디오 촬영', '커플·웨딩 기념촬영', '웨딩액자 촬영'],
+  장수사진: ['부모님 장수사진 촬영', '부모님 기념촬영', '편안한 분위기의 장수사진 촬영'],
+  복원사진: ['오래된 사진 복원', '훼손된 사진 복원·보정', '소중한 사진 복원'],
+  스냅사진: ['행사·야외 스냅 촬영', '행사·기념 스냅 촬영', '자연스러운 순간 스냅 촬영'],
+  웨딩사진: ['웨딩 스튜디오 촬영', '커플·웨딩 기념촬영', '웨딩 기념촬영'],
   우정사진: ['친구·단체 우정 촬영', '기념일 우정사진 촬영', '단체 기념촬영'],
 };
+
+/*
+ * 실제 자료(소개·특징·상품·가격 목록·구성)에 그 서비스가 적혀 있을 때만 쓰는 구체적인 문구.
+ * 없는 서비스를 있는 것처럼 보이게 하지 않으려고 기본 추천에서는 뺐다.
+ * [분야, 자료에서 찾을 낱말, 바꿔 넣을 자리(0~2), 문구]
+ */
+const DETAIL_POINTS: [string, RegExp, number, string][] = [
+  ['복원사진', /인화/, 2, '가족사진 복원·인화'],
+  ['장수사진', /액자|영정/, 1, '장수·영정 액자 촬영'],
+  ['웨딩사진', /웨딩\s*액자/, 2, '웨딩액자 촬영'],
+  ['스냅사진', /돌잔치/, 1, '돌잔치·행사 스냅 촬영'],
+];
 
 /** 상품명·상품 종류에서 촬영분야 이름만 ('가족사진 기본촬영(4인이하)' → '가족사진'). 모르면 적힌 그대로 */
 export function shootField(product: string): string {
@@ -656,11 +672,12 @@ function withArea(area: string, text: string): string {
   return t.startsWith(a) ? t : `${a} ${t}`;
 }
 
-export function searchTitles(product: string, area: string): string[] {
+export function searchTitles(product: string, area: string, evidence = ''): string[] {
   /* 지역을 모르면 제목을 완성하지 않는다 — ② 에서 지역을 넣으면 그때 만든다 (추측하지 않음) */
   if (!(area || '').trim()) return [];
   const field = shootField(product) || '사진';
-  const points = FIELD_POINTS[field] ?? ['촬영', '기념촬영', '스튜디오 촬영'];
+  const points = [...(FIELD_POINTS[field] ?? ['촬영', '기념촬영', '스튜디오 촬영'])];
+  DETAIL_POINTS.forEach(([f, re, at, text]) => { if (f === field && re.test(evidence)) points[at] = text; });
   const out = points.map((pt) => withArea(area, `${field} ${pt}`));
   /* 실제 상품명에 가까운 제목은 맨 아래 보조 후보로만 */
   const extra = productInfoTitle(product, area);

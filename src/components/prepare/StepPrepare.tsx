@@ -16,7 +16,6 @@ import { isEmptyProject } from '@/components/flow/steps';
 import { EMPTY_STUDIO } from '@/types/studio';
 import { applyChange, reviewFields, type FieldChange } from '@/services/read/mergeFields';
 import { saveSnapshot, listSnapshots, openSnapshot } from '@/services/storage/snapshots';
-import { loadStudio } from '@/services/storage/studio';
 import { readPhotoFiles } from '@/utils/image';
 import { reviewPhotos } from '@/utils/photoCheck';
 import { setMainPhoto } from '@/utils/photoOps';
@@ -108,19 +107,9 @@ export function StepPrepare() {
   /* 이미 연결돼 있으면 작게 알려주기만 한다. 연결 안 돼 있어도 아무것도 띄우지 않는다. */
   useEffect(() => { void toolsStatus().then(setTools); }, []);
 
-  /* 사진관 정보를 예전에 적어두셨다면 새 작업에도 가져온다 (비어 있을 때만) */
-  useEffect(() => {
-    if (latest.current.studio?.name) return;
-    void loadStudio().then((s) => {
-      if (!s.name && !s.phone) return;
-      if (latest.current.studio?.name) return;
-      update((d) => {
-        d.studio = { ...s };
-        if (!d.product.brand) d.product.brand = s.name;
-      }, { label: 'studio.restore', merge: false });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  /* 새 작업은 완전히 빈 상태로 시작한다.
+     (예전에는 마지막에 적어둔 사진관 정보를 새 작업에 넣어줬는데, 여러 업체를 만들면
+      이전 업체의 이름·전화·주소가 새 작업에 남아 섞였다 — 그래서 넣지 않는다) */
 
   const setRow = (id: string, s: RowState | null) =>
     setState((prev) => {
