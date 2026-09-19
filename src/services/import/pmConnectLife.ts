@@ -3,25 +3,39 @@ import { forgetTools, toolsStatus, wasSeenBefore } from './baroduTools';
 /**
  * PM Connect 를 사용자가 따로 켜고 끄지 않게 한다.
  *
- *   PageMaker 열림 → 꺼져 있으면 pmconnect:// 로 켠다
+ *   PageMaker 열림 → 꺼져 있으면 pmconnect:// 로 **탭마다 딱 한 번만** 켠다
  *   PageMaker 열려 있는 동안 → 10초마다 찾아간다 (PM Connect 는 이걸로 PageMaker 가 열려 있음을 안다)
  *   PageMaker 닫힘 → 찾아오지 않으니 PM Connect 가 30초 뒤 스스로 끝난다
  *
+ * ⚠ 예전에는 박자마다(1분 간격)·클릭마다 pmconnect:// 를 다시 불러
+ *   Chrome 의 'PM Connect 를 여시겠습니까?' 창이 계속 다시 떴다.
+ *   이제는 한 탭에서 한 번 요청하고, 한 번이라도 연결되면 다시는 요청하지 않는다.
+ *
  * ⚠ PM Connect 를 이 컴퓨터에서 한 번이라도 쓴 적이 있을 때만 움직인다.
  *   처음 온 사람에게 브라우저의 '로컬 네트워크 접근' 질문이나 프로그램 열기 질문을 띄우지 않기 위해서다.
- *   (처음 쓰는 사람은 지금처럼 [글과 사진 가져오기] 를 누를 때 연결 안내를 본다)
  */
 
 const BEAT_MS = 10 * 1000;
-const LAUNCH_GAP_MS = 60 * 1000;
 
 let started = false;
-let stopped = false;
-let lastLaunch = 0;
+/** 이 탭에서 이미 켜기를 요청했는지 — 탭마다 한 번만 */
+let launched = false;
+/** 이 탭에서 PM Connect 가 한 번이라도 응답했는지 — 그 뒤로는 켜기 요청을 하지 않는다 */
+let connected = false;
+/** 사용자 동작이 없어 요청을 미뤄둔 상태 */
+let waitingGesture = false;
+
+function hasGesture(): boolean {
+  const ua = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
+  return ua ? ua.hasBeenActive : true;
+}
 
 function launch(): void {
-  if (Date.now() - lastLaunch < LAUNCH_GAP_MS) return;
-  lastLaunch = Date.now();
+  if (launched || connected) return;
+  /* 사용자 동작 전에는 Chrome 이 막을 수 있다 — 첫 클릭·키 입력 때 한 번만 요청한다 */
+  if (!hasGesture()) { waitingGesture = true; return; }
+  launched = true;
+  waitingGesture = false;
   forgetTools();
   try {
     /* 설치돼 있으면 Windows 가 PM Connect 를 켠다. 없으면 아무 일도 없다 */
@@ -32,10 +46,10 @@ function launch(): void {
 }
 
 async function beat(): Promise<void> {
-  if (!wasSeenBefore()) return; /* 처음 온 사람에게는 아무 요청도 보내지 않는다 — 한 번 연결되면 다음 박자부터 시작 */
+  if (!wasSeenBefore()) return; /* 처음 온 사람에게는 아무 요청도 보내지 않는다 */
   const s = await toolsStatus();
-  stopped = s.state === 'stopped';
-  if (stopped) launch();
+  if (s.state !== 'stopped' && s.state !== 'not-installed') { connected = true; return; }
+  if (s.state === 'stopped') launch();
 }
 
 export function startPmConnectLife(): void {
@@ -55,18 +69,17 @@ export function startPmConnectLife(): void {
     window.setInterval(() => void beat(), BEAT_MS);
   }
 
-  /* 브라우저가 사용자 동작 없이 프로그램 열기를 막은 경우 — 첫 클릭·키 입력 때 다시 시도한다 */
-  let lastRetry = 0;
-  const retry = () => {
-    if (!stopped || Date.now() - lastRetry < LAUNCH_GAP_MS) return; /* 거절해도 매번 묻지 않게 1분에 한 번만 */
-    lastRetry = Date.now();
-    lastLaunch = 0;
+  /* 사용자 동작이 없어 미뤄둔 요청만 첫 클릭·키 입력 때 한 번 보낸다 */
+  const onGesture = () => {
+    if (!waitingGesture) return;
+    window.removeEventListener('pointerdown', onGesture, true);
+    window.removeEventListener('keydown', onGesture, true);
     launch();
   };
-  window.addEventListener('pointerdown', retry, true);
-  window.addEventListener('keydown', retry, true);
+  window.addEventListener('pointerdown', onGesture, true);
+  window.addEventListener('keydown', onGesture, true);
 
-  /* 다른 탭에 있다가 돌아오면 바로 한 번 확인한다 */
+  /* 다른 탭에 있다가 돌아오면 바로 한 번 확인한다 (켜기 요청은 위 규칙대로 한 번뿐) */
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void beat();
   });
