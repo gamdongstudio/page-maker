@@ -207,9 +207,10 @@ export function recipeFor(productName: string): Recipe {
  * → 추천 대상 → 이용 방법 → 예약·문의(마무리)
  */
 const PAGE_ORDER: MenuKind[] = [
-  'main', 'benefit', 'event', 'perks', 'price', 'compare', 'intro',
-  'shootConcept', 'gallery', 'review', 'recommend',
-  'process', 'howto', 'prepare', 'caution', 'faq', 'brand', 'cta',
+  /* 최신 소식 이미지 → 메인(업체명·대표사진) → 소개 → 촬영상품 → 가격 → 갤러리 → 이벤트·혜택 → 나머지 */
+  'news', 'main', 'brand', 'intro', 'shootConcept', 'price', 'compare', 'gallery',
+  'event', 'perks', 'benefit', 'review', 'recommend',
+  'process', 'howto', 'prepare', 'caution', 'faq', 'cta',
 ];
 
 function inPageOrder(kinds: MenuKind[]): MenuKind[] {
@@ -245,7 +246,9 @@ export function planStudioPage(project: ProjectData): StudioPlan {
 
   /* ---- 사진 고르기 (새로 만들지 않는다. 있는 것 중에서 고른다) ----
      '사용하지 않음' 과 '제외 추천' 이 붙은 사진은 배치하지 않는다 (보관함에는 그대로 남는다) */
-  const photos = project.photos.filter((p) => p.kind !== 'unused' && !p.exclude);
+  /* 최신 소식 이미지는 맨 위 영역 전용 — 대표사진·갤러리·다른 영역에 배치하지 않는다 */
+  const photos = project.photos.filter((p) => p.kind !== 'unused' && !p.exclude && !p.news);
+  const newsPhoto = project.photos.find((p) => p.news);
   const mainPhoto = pickMainPhoto(photos);
   const spread = spreadPhotos(photos, mainPhoto?.id);
 
@@ -260,6 +263,7 @@ export function planStudioPage(project: ProjectData): StudioPlan {
   want('caution', !!prod.caution.trim());
   /* 실제로 가져온 이벤트가 있을 때만 이벤트 영역을 넣는다 */
   want('event', !!(project.event?.title?.trim() || project.event?.eventPrice || project.event?.period));
+  if (newsPhoto && !kinds.includes('news')) kinds.push('news');
   kinds = inPageOrder(kinds);
   if (/가격|혜택|할인|이벤트/.test(wish)) kinds = moveEarlier(kinds, ['event', 'perks', 'price']);
   if (/사진.*(많|위주)|갤러리/.test(wish)) kinds = moveEarlier(kinds, ['gallery']);
@@ -342,6 +346,12 @@ function buildMenu(kind: MenuKind, c: Ctx): PlannedMenu {
   const perks = c.project.perks ?? [];
 
   switch (kind) {
+    case 'news': {
+      /* 최신 소식 첫 사진 1장만 — 없으면 영역을 만들지 않는다 */
+      const news = c.project.photos.find((p) => p.news);
+      return { ...base, title: '최신 소식', body: '', photoIds: news ? [news.id] : [], hidden: !news };
+    }
+
     case 'main':
       return {
         ...base,
@@ -712,8 +722,10 @@ function moveEarlier(kinds: MenuKind[], wanted: MenuKind[]): MenuKind[] {
   const picked = kinds.filter((k) => wanted.includes(k));
   const rest = kinds.filter((k) => !wanted.includes(k));
   /* 메인 바로 다음으로 올린다 */
-  const head = rest.slice(0, 1);
-  return [...head, ...picked, ...rest.slice(1)];
+  /* 맨 위 최신 소식 이미지가 있으면 그것과 메인 둘 다 앞에 둔다 */
+  const n = rest[0] === 'news' ? 2 : 1;
+  const head = rest.slice(0, n);
+  return [...head, ...picked, ...rest.slice(n)];
 }
 
 /* ------------------------------------------------------------------ */

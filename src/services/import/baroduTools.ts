@@ -49,6 +49,8 @@ export interface ImportResult {
   description: string;
   text: string;
   images: FoundImage[];
+  /** 스마트플레이스 최신 소식 게시물의 첫 사진 1장 (PM Connect 1.0.15~, 없을 수 있다) */
+  newsImage?: FoundImage;
 }
 
 export interface ImportFail {

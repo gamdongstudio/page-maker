@@ -29,6 +29,9 @@ export function hasContent(menu: MenuItem, project: ProjectData): boolean {
   const p = project.product;
 
   switch (menu.kind) {
+    case 'news':
+      return photos;
+
     case 'main':
       return has(p.name) || has(p.brand) || has(p.tagline) || has(p.listPrice) || has(p.salePrice) || photos;
 

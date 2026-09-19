@@ -22,7 +22,9 @@ export function photosOf(menu: MenuItem, project: ProjectData): Photo[] {
 /** 메뉴 성격에 맞는 사진 고르기 (사용자가 직접 지정하지 않았을 때) */
 export function autoPhotosFor(menu: MenuItem, project: ProjectData): Photo[] {
   /* '제외 추천' 이 붙은 사진은 알아서 넣지 않는다 (사용자가 직접 고르면 그때는 쓴다) */
-  const pool = project.photos.filter((p) => !p.exclude);
+  /* 최신 소식 이미지는 맨 위 '최신 소식' 영역에만 — 다른 영역(갤러리 등)에 자동으로 넣지 않는다 */
+  if (menu.kind === 'news') return project.photos.filter((p) => p.news).slice(0, 1);
+  const pool = project.photos.filter((p) => !p.exclude && !p.news);
   const byKind = (k: Photo['kind']) => pool.filter((p) => p.kind === k);
 
   switch (menu.kind) {

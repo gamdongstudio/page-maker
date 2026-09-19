@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProject } from '@/store/ProjectStore';
 import type { Photo, ProjectData, SourceLink } from '@/types/project';
-import { uid } from '@/types/defaults';
+import { makeMenu, uid } from '@/types/defaults';
 import {
-  checkUrl, collectFromUrl, forgetTools, guessSource, SOURCE_LABEL, SOURCE_READINESS, toolsStatus,
+  checkUrl, collectFromUrl, forgetTools, guessSource, photoSrc, SOURCE_LABEL, SOURCE_READINESS, toolsStatus,
   type ToolsStatus,
 } from '@/services/import/baroduTools';
 import { downloadImages, photoSourceOf } from '@/services/import/downloadImages';
@@ -102,8 +102,16 @@ export function StepPrepare() {
         const hadMain = d.photos.some((p) => p.kind === 'main');
         d.photos.push(...photos);
         if (!hadMain) {
-          const first = photos.find((p) => !p.exclude) ?? photos[0];
-          setMainPhoto(d, first.id);
+          /* 최신 소식 이미지는 대표사진이 되지 않는다 — 업체 사진 중에서만 고른다 */
+          const first = photos.find((p) => !p.exclude && !p.news) ?? photos.find((p) => !p.news);
+          if (first) setMainPhoto(d, first.id);
+        }
+        /* 최신 소식 첫 이미지 → 상세페이지 맨 위 '최신 소식' 영역 (갤러리·대표사진과 따로) */
+        const news = photos.find((p) => p.news);
+        if (news) {
+          const at = d.menus.findIndex((m) => m.kind === 'news');
+          const menu = at >= 0 ? d.menus.splice(at, 1)[0] : makeMenu('news', '최신 소식');
+          d.menus.unshift({ ...menu, photoIds: [news.id], hidden: false });
         }
       }
       if (link) {
@@ -178,6 +186,17 @@ export function StepPrepare() {
       const { files, failed } = await downloadImages(res, 20);
       const read = await readPhotoFiles(files, photoSourceOf(res.sourceType));
       const photos = await reviewPhotos(read, latest.current.photos);
+      /* 스마트플레이스 최신 소식 게시물의 첫 번째 사진 1장 (PM Connect 가 줄 때만) */
+      if (res.newsImage) {
+        try {
+          const r = await fetch(photoSrc(res.newsImage), { cache: 'reload' });
+          const blob = r.ok ? await r.blob() : null;
+          if (blob && /^image\//.test(blob.type)) {
+            const [news] = await readPhotoFiles([new File([blob], 'latest-news.jpg', { type: blob.type })], 'place');
+            if (news) photos.push({ ...news, news: true });
+          }
+        } catch { /* 못 받으면 맨 위 영역 없이 대표사진부터 시작한다 */ }
+      }
 
       setRow(row.id, { phase: '정리하는 중…' });
       await merge(

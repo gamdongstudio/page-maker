@@ -285,6 +285,9 @@ function MenuBody({ menu, project, narrow, boxWidth, edit }: {
     case 'recommend':
       return <RecommendSection {...sp} />;
 
+    case 'news':
+      return null; /* 최신 소식 — 제목·글 없이 사진 1장만 (사진은 아래 PhotoBlock 이 그린다) */
+
     case 'gallery':
       return <GallerySection {...sp} />;
 

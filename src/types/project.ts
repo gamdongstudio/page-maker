@@ -128,6 +128,8 @@ export interface Photo {
   };
   /** 어디서 왔는지 (없으면 직접 추가) */
   source?: PhotoSource;
+  /** 스마트플레이스 최신 소식 게시물의 첫 사진 — 맨 위 '최신 소식' 영역 전용 (대표사진·갤러리에 넣지 않는다) */
+  news?: boolean;
   /**
    * 빼는 게 좋아 보이는 이유 (너무 작음 · 같은 사진 · 띠 모양 배너 …).
    * **추천일 뿐이다.** 자동으로 지우지 않는다. 사용자가 고른다.
@@ -158,7 +160,8 @@ export type MenuKind =
   | 'shootConcept' // 촬영 콘셉트
   | 'process'      // 촬영 과정
   | 'prepare'      // 준비사항
-  | 'free';        // 자유 영역 — 정해진 틀에 없는 내용을 직접 적는 칸
+  | 'free'         // 자유 영역 — 정해진 틀에 없는 내용을 직접 적는 칸
+  | 'news';        // 최신 소식 — 스마트플레이스 최신 소식 첫 사진 (상세페이지 맨 위)
 
 export interface MenuItem {
   id: string;
