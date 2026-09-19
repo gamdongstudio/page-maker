@@ -7,7 +7,7 @@ import { useProject } from '@/store/ProjectStore';
 import { useEdition } from '@/store/EditionContext';
 import { downloadProjectFile, readProjectFile } from '@/services/storage/local';
 import { saveStudio } from '@/services/storage/studio';
-import { saveWork } from '@/services/storage/works';
+import { keepCurrentWork, listWorks, openWork, whenText, type WorkSummary } from '@/services/storage/works';
 import { ExportStage } from '@/components/export/ExportStage';
 import type { PreviewEdit } from '@/components/preview/editApi';
 import { AddMenuHere } from '@/components/menus/AddMenuHere';
@@ -29,7 +29,7 @@ const STEP_KEY = 'barodu.step';
 
 export default function App() {
   const {
-    project, replace, update, undo, redo, canUndo, canRedo, saveState, saveError, newProject,
+    project, replace, update, undo, redo, canUndo, canRedo, saveState, saveError, newProject, restoredAt,
   } = useProject();
   const { isPro, setEdition } = useEdition();
 
@@ -56,6 +56,13 @@ export default function App() {
   /** 미리보기의 '+ 여기에 넣기' 를 눌렀을 때 — 보이는 것 기준 자리 */
   const [addAt, setAddAt] = useState<number | null>(null);
   const [howOpen, setHowOpen] = useState(false);
+  /** 확인 창 — '예/아니오' 대신 무엇을 하는지 적힌 단추를 보여준다 */
+  const [ask, setAsk] = useState<{
+    title: string; lines: string[]; buttons: { label: string; main?: boolean; run?: () => void }[];
+  } | null>(null);
+  /** 작업 관리 안의 최근 작업 (보관한 작업 목록에서 최근 3개) */
+  const [recent, setRecent] = useState<WorkSummary[]>([]);
+  const resumeAsked = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const projectRef = useRef(project);
@@ -246,23 +253,89 @@ export default function App() {
     [update, jump, say, selectedId],
   );
 
-  /** 새 상세페이지 — 지금 작업은 잃지 않게 '내 작업'에 보관하고 시작한다 */
-  const onNew = async () => {
-    setMoreOpen(false);
+  /**
+   * 지금 작업은 [내 작업]에 보관하고 빈 작업으로 시작한다.
+   * 새 작업 시작 · 처음부터 시작 · 처음 열 때 이어하기 안내가 함께 쓴다 (지우지 않는다).
+   */
+  const startBlank = async (message: string) => {
     const now = projectRef.current;
-    if (!isEmptyProject(now)) {
-      if (!confirm('지금 작업은 [내 작업]에 보관하고 새 상세페이지를 시작할까요?')) return;
-      say('지금 작업을 보관하는 중…');
-      const id = await saveWork(now, now.title || '이름 없는 작업');
-      if (!id) {
-        if (!confirm('보관하지 못했습니다. (저장 공간이 부족할 수 있어요) 그래도 새로 시작할까요?')) return;
-      }
+    say('지금 작업을 보관하는 중…');
+    const kept = await keepCurrentWork(now, isEmptyProject(now));
+    if (!kept) {
+      say('지금 작업을 보관하지 못해 새로 시작하지 않았습니다. (저장 공간이 부족할 수 있어요)');
+      return;
     }
     newProject(false);
     setSelectedId(null);
     goStep('prepare');
-    say('새 상세페이지를 시작합니다.');
+    say(message);
   };
+
+  /** 새 작업 시작 — 다른 업체 또는 새로운 상세페이지 */
+  const onNew = () => {
+    setMoreOpen(false);
+    if (isEmptyProject(projectRef.current)) { void startBlank('새 작업을 시작합니다.'); return; }
+    setAsk({
+      title: '새 작업을 시작하시겠어요?',
+      lines: ['지금 작업은 [내 작업]에 보관되어 나중에 다시 열 수 있습니다.'],
+      buttons: [
+        { label: '새 작업 시작', main: true, run: () => void startBlank('새 작업을 시작합니다.') },
+        { label: '취소' },
+      ],
+    });
+  };
+
+  /** 처음부터 다시 시작 — 지금 작업은 보관하고 빈 작업으로 */
+  const onRestart = () => {
+    setMoreOpen(false);
+    setAsk({
+      title: '처음부터 다시 시작하시겠어요?',
+      lines: ['현재 작업은 자동저장되어 나중에 다시 열 수 있습니다.', '새 빈 작업으로 시작합니다.'],
+      buttons: [
+        { label: '처음부터 시작', main: true, run: () => void startBlank('처음부터 다시 시작합니다.') },
+        { label: '취소' },
+      ],
+    });
+  };
+
+  /** 최근 작업 열기 — 지금 작업은 보관하고 연다 */
+  const onOpenRecent = async (w: WorkSummary) => {
+    setMoreOpen(false);
+    const now = projectRef.current;
+    if (now.id !== w.id) {
+      const kept = await keepCurrentWork(now, isEmptyProject(now));
+      if (!kept) { say('지금 작업을 보관하지 못해 열지 않았습니다.'); return; }
+    }
+    const data = await openWork(w.id);
+    if (!data) { say('작업을 열지 못했습니다.'); return; }
+    /* 다시 보관할 때 같은 자리에 저장되도록 작업 번호를 맞춘다 */
+    replace({ ...data, id: w.id });
+    setSelectedId(null);
+    goStep('prepare');
+    say(w.name + ' 작업을 열었습니다.');
+  };
+
+  /* 작업 관리를 열 때 최근 작업을 읽는다 */
+  useEffect(() => {
+    if (moreOpen) void listWorks().then((list) => setRecent(list.slice(0, 3)));
+  }, [moreOpen]);
+
+  /* 처음 열 때 — 자동저장된 이전 작업이 있으면 이어서 할지 묻는다 */
+  useEffect(() => {
+    if (!restoredAt || resumeAsked.current) return;
+    resumeAsked.current = true;
+    const now = projectRef.current;
+    if (isEmptyProject(now)) return;
+    setAsk({
+      title: '이전 작업이 있습니다.',
+      lines: [now.studio?.name || now.title || '이름 없는 작업', '마지막 저장: ' + whenText(restoredAt), '이어서 작업하시겠어요?'],
+      buttons: [
+        { label: '이어서 하기', main: true },
+        { label: '새 작업 시작', run: () => void startBlank('새 작업을 시작합니다.') },
+      ],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restoredAt]);
 
   const onOpenFile = async (f: File | undefined) => {
     if (!f) return;
@@ -337,10 +410,21 @@ export default function App() {
               <>
                 <div className="moremenu__mask" onClick={() => setMoreOpen(false)} />
                 <div className="moremenu__list">
-                  <button onClick={() => void onNew()}>새 상세페이지 만들기</button>
+                  <button onClick={onNew}>새 작업 시작</button>
                   <button onClick={() => { setWorksOpen(true); setRightHidden(false); setMoreOpen(false); }}>
-                    내 작업 (보관·다시 열기)
+                    저장된 작업 열기 (내 작업)
                   </button>
+                  {recent.length > 0 && (
+                    <>
+                      <p style={{ margin: '6px 12px 2px', fontSize: 12, opacity: 0.6 }}>최근 작업</p>
+                      {recent.map((w) => (
+                        <button key={w.id} onClick={() => void onOpenRecent(w)}>
+                          {w.name} <span style={{ opacity: 0.55, fontSize: 12 }}>· {whenText(w.updatedAt)}</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  <button onClick={onRestart}>처음부터 다시 시작</button>
                   <button onClick={() => { fileRef.current?.click(); setMoreOpen(false); }}>작업파일 불러오기</button>
                   <button onClick={() => { downloadProjectFile(project); setMoreOpen(false); say('작업파일을 저장했습니다.'); }}>
                     작업파일 저장
@@ -367,6 +451,31 @@ export default function App() {
       </header>
 
       {saveError && <div className="warnbar">{saveError}</div>}
+
+      {ask && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={() => setAsk(null)}
+        >
+          <section
+            className="box box--ask" role="dialog" aria-label={ask.title}
+            style={{ maxWidth: 420, width: 'calc(100% - 32px)', background: '#fff' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="box__title">{ask.title}</h3>
+            {ask.lines.map((l, i) => <p key={i} style={{ margin: '4px 0' }}>{l}</p>)}
+            <div className="askchoice">
+              {ask.buttons.map((b) => (
+                <button
+                  key={b.label}
+                  className={'btn ' + (b.main ? 'btn--main' : 'btn--line')}
+                  onClick={() => { setAsk(null); b.run?.(); }}
+                >{b.label}</button>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
 
       <SplitLayout
         isMobile={isMobile}

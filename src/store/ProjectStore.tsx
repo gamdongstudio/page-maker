@@ -123,6 +123,8 @@ interface ProjectContextValue {
   saveState: SaveState;
   saveError: string | null;
   newProject: (sample?: boolean) => void;
+  /** 처음 열 때 자동저장 작업을 이어서 불러왔다면 그 작업의 마지막 저장 시각 (없으면 0) */
+  restoredAt: number;
 }
 
 const Ctx = createContext<ProjectContextValue | null>(null);
@@ -147,6 +149,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const touched = useRef(false);
   /** 방금 저장한 시각 — 같은 내용을 또 저장하지 않으려고 */
   const savedAt = useRef(0);
+  const [restoredAt, setRestoredAt] = useState(0);
 
   /* ---------------- 처음 열 때: 최근 작업 이어하기 ---------------- */
   useEffect(() => {
@@ -165,6 +168,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (found && !touched.current) {
         savedAt.current = found.updatedAt;
         dispatch({ type: 'hydrate', next: found });
+        setRestoredAt(found.updatedAt || Date.now());
       }
       setReady(true);
     });
@@ -246,8 +250,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       saveState,
       saveError,
       newProject,
+      restoredAt,
     }),
-    [state.present, state.past.length, state.future.length, update, replace, undo, redo, saveState, saveError, newProject],
+    [state.present, state.past.length, state.future.length, update, replace, undo, redo, saveState, saveError, newProject, restoredAt],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

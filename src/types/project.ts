@@ -16,7 +16,9 @@ import type { FontKey } from '@/config/fonts';
 
 export interface ProductInfo {
   /* 기본 */
-  name: string;          // 상품명
+  name: string;          // 상품명 (상세페이지 메인 제목)
+  /** 스마트스토어 제목 — 처음 자동 추천 때만 메인 제목과 같게 넣고, 그 뒤로는 따로 고친다 */
+  storeTitle?: string;
   brand: string;         // 브랜드
   category: string;      // 카테고리
   listPrice: string;     // 정상가격

@@ -37,6 +37,7 @@ export function applyStudioPlan(d: ProjectData, plan: StudioPlan, opts: ApplyOpt
     const title = plan.searchTitles[opts.titleIndex ?? 0];
     const hero = plan.heroCopy[opts.heroIndex ?? 0];
     if (title) d.product.name = title;
+    if (title && !d.product.storeTitle?.trim()) d.product.storeTitle = title;
     if (hero) d.product.tagline = hero;
     if (!d.product.target) d.product.target = plan.audience;
     if (!d.product.category && plan.productName) d.product.category = plan.productName;
@@ -264,6 +265,7 @@ export function applyScoped(
   /* 메인 제목이 비었거나 가져온 상품명 그대로라면 추천 제목으로 (실제 상품명은 shoot.productName 에 그대로 남는다) */
   const rawName = d.product.name.trim();
   if (title && (!rawName || rawName === (d.shoot?.productName ?? '').trim())) d.product.name = title;
+  if (title && !d.product.storeTitle?.trim()) d.product.storeTitle = title;
   if (!d.product.tagline.trim() && hero) d.product.tagline = hero;
   if (!d.product.target.trim()) d.product.target = plan.audience;
   if (!d.product.category.trim() && plan.productName) d.product.category = plan.productName;

@@ -22,7 +22,7 @@ import { onPublicAddress } from '@/services/import/baroduTools';
  * ⚠ 등록자료 받기는 BARODU Tools 가 없어도 된다.
  */
 export function SmartStore({ getStage }: { getStage: () => HTMLElement | null }) {
-  const { project } = useProject();
+  const { project, update } = useProject();
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState('');
   const [copied, setCopied] = useState('');
@@ -169,6 +169,17 @@ export function SmartStore({ getStage }: { getStage: () => HTMLElement | null })
       </header>
 
       {/* 등록 준비 상태 — 모르는 것은 아는 척하지 않는다 */}
+      {/* 스마트스토어 제목 — 메인 제목과 따로 고친다 */}
+      <label className="field">
+        <span className="field__label">스마트스토어 제목</span>
+        <input
+          className="field__input"
+          value={project.product.storeTitle ?? project.product.name}
+          placeholder="예) 구미 가족사진 부모님과 함께하는 가족촬영"
+          onChange={(e) => { const v = e.target.value; update((d) => { d.product.storeTitle = v; }, { label: 'product.storeTitle' }); }}
+        />
+      </label>
+
       <ul className="ss__ready">
         {ready.map((r) => (
           <li key={r.label} className={'is-' + r.state}>

@@ -132,7 +132,7 @@ export function buildPayload(p: ProjectData): SmartStorePayload {
   const main = photos.find((x) => x.kind === 'main') ?? photos[0] ?? null;
 
   return {
-    productName: p.product.name.trim(),
+    productName: (p.product.storeTitle || p.product.name).trim(),
     salePrice: (p.product.salePrice || p.pricing?.eventPrice || '').replace(/[^\d]/g, ''),
     normalPrice: (p.product.listPrice || p.pricing?.listPrice || '').replace(/[^\d]/g, ''),
     description: descriptionOf(p),
@@ -166,7 +166,11 @@ export interface ReadyItem {
 export function checkReady(v: SmartStorePayload, detailCount: number): ReadyItem[] {
   const n = (x: string) => x.trim().length > 0;
   return [
-    { label: '상품명', state: n(v.productName) ? 'ok' : 'todo', note: v.productName || '상품정보에서 넣어주세요' },
+    !n(v.region)
+      ? { label: '상품명', state: 'todo', note: '지역을 넣어주세요 — 스마트스토어 제목 맨 앞에 들어갑니다' }
+      : !v.productName.startsWith(v.region)
+        ? { label: '상품명', state: 'check', note: `제목 맨 앞에 지역(${v.region})을 넣어주세요 — ${v.productName || '비어 있음'}` }
+        : { label: '상품명', state: 'ok', note: v.productName },
     { label: '판매가', state: n(v.salePrice) ? 'ok' : 'todo', note: v.salePrice ? formatWon(v.salePrice) : '상품정보에서 넣어주세요' },
     { label: '상품 설명', state: n(v.description) ? 'ok' : 'todo', note: n(v.description) ? '준비됨' : '한 줄 소개나 상세 설명을 넣어주세요' },
     { label: '대표사진', state: v.representativeImage ? 'ok' : 'todo', note: v.representativeImage ? '1장' : '사진을 올려주세요' },

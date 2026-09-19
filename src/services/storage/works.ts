@@ -66,6 +66,17 @@ export async function openWork(id: string): Promise<ProjectData | null> {
   return migrate(got);
 }
 
+/**
+ * 새로 시작하기 전에 지금 작업을 [내 작업]에 보관한다 (빈 작업이면 건너뜀).
+ * 같은 작업을 여러 번 보관해도 목록에 하나만 남도록 작업 번호를 그대로 쓴다.
+ * 보관하지 못했으면 false — 이때는 새로 시작하지 않는다.
+ */
+export async function keepCurrentWork(now: ProjectData, isEmpty: boolean): Promise<boolean> {
+  if (isEmpty) return true;
+  const name = (now.studio?.name || now.title || '이름 없는 작업').trim();
+  return !!(await saveWork(now, name, now.id));
+}
+
 /** 복제 — 디자인과 구성은 그대로 두고 새 작업으로 만든다 */
 export async function duplicateWork(id: string): Promise<string | null> {
   const src = await openWork(id);

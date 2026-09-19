@@ -6,6 +6,8 @@ import { applyStyle } from '@/services/design/style';
 import { listSnapshots, openSnapshot, saveSnapshot } from '@/services/storage/snapshots';
 import { hasContent } from '@/components/preview/sectionContent';
 import { formatWon } from '@/utils/format';
+import { EMPTY_STUDIO } from '@/types/studio';
+import { EMPTY_BRIEF } from '@/types/project';
 import { ChatGptPolish } from './ChatGptPolish';
 
 /**
@@ -110,7 +112,15 @@ export function StepRecommend({ onNext }: { onNext: () => void }) {
     setMsg('자동 추천 전으로 되돌렸습니다.');
   };
 
-  const pickTitle = (t: string) => update((d) => { d.product.name = t; }, { label: 'recommend.title', merge: false });
+  const pickTitle = (t: string) => update((d) => {
+    d.product.name = t;
+    if (!d.product.storeTitle?.trim()) d.product.storeTitle = t;
+  }, { label: 'recommend.title', merge: false });
+  /** 지역 — 사진관 정보와 촬영 정보에 같이 넣는다 (제목 맨 앞에 쓰인다) */
+  const setArea = (v: string) => update((d) => {
+    d.studio = { ...EMPTY_STUDIO, ...(d.studio ?? {}), area: v.trim() };
+    d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), area: v.trim() };
+  }, { label: 'studio.area' });
   const pickHero = (t: string) => update((d) => { d.product.tagline = t; }, { label: 'recommend.hero', merge: false });
 
   return (
@@ -173,6 +183,18 @@ export function StepRecommend({ onNext }: { onNext: () => void }) {
         <>
           <section className="box">
             <h3 className="box__title">메인 제목 고르기</h3>
+            {plan.searchTitles.length === 0 && (
+              <div className="note note--warn">
+                <p>지역을 확인하지 못했습니다. 지역을 입력해주세요.</p>
+                <input
+                  className="field__input" aria-label="지역" placeholder="예) 구미"
+                  defaultValue={project.studio?.area ?? ''}
+                  onBlur={(e) => { if (e.target.value.trim()) setArea(e.target.value); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                />
+                <p className="field__hint">지역을 넣으면 '지역 + 촬영분야' 제목을 추천해 드립니다.</p>
+              </div>
+            )}
             <div className="chiprow">
               {plan.searchTitles.map((t) => (
                 <button key={t} className={'chip' + (project.product.name === t ? ' is-on' : '')} onClick={() => pickTitle(t)}>

@@ -657,6 +657,8 @@ function withArea(area: string, text: string): string {
 }
 
 export function searchTitles(product: string, area: string): string[] {
+  /* 지역을 모르면 제목을 완성하지 않는다 — ② 에서 지역을 넣으면 그때 만든다 (추측하지 않음) */
+  if (!(area || '').trim()) return [];
   const field = shootField(product) || '사진';
   const points = FIELD_POINTS[field] ?? ['촬영', '기념촬영', '스튜디오 촬영'];
   const out = points.map((pt) => withArea(area, `${field} ${pt}`));
@@ -671,7 +673,7 @@ export function searchTitles(product: string, area: string): string[] {
 export function productInfoTitle(product: string, area: string): string {
   const p = (product || '').trim();
   const field = shootField(p);
-  if (!p || !field || p === field) return '';
+  if (!p || !field || p === field || !(area || '').trim()) return '';
   const rest = p.replace(field, '').trim();
   /* '증명&여권사진' 처럼 사진 종류 이름뿐이면 더할 정보가 없다 */
   if (/^[가-힣&·,/\s]*사진$/.test(rest) && !/\d/.test(rest)) return '';

@@ -279,6 +279,28 @@ export function guessSource(url: string): SourceType {
 }
 
 /**
+ * 네이버 플레이스 업체 번호.
+ * m.place.naver.com/place/{번호}/… · pcmap.place.naver.com/place/{번호} · map.naver.com/…/place/{번호}?…
+ * naver.me 짧은 주소에는 번호가 없다 — 그 주소는 PM Connect 가 풀어준다.
+ */
+export function placeIdOf(url: string): string {
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)(place\.naver\.com|map\.naver\.com)$/.test(u.hostname)) return '';
+    const id = u.pathname.match(/\/place\/(\d+)/)?.[1] ?? u.searchParams.get('placeId') ?? '';
+    return /^\d+$/.test(id) ? id : '';
+  } catch {
+    return '';
+  }
+}
+
+/** 업체 번호가 보이는 주소는 검색어·지도 위치·시각 같은 군더더기를 빼고 업체 화면 주소로 맞춘다 */
+export function normalizePlaceUrl(url: string): string {
+  const id = placeIdOf(url);
+  return id ? `https://m.place.naver.com/place/${id}/home` : url;
+}
+
+/**
  * 이 화면이 **공개 주소(인터넷)** 에서 열렸는지.
  *
  * BARODU Tools 는 이 컴퓨터 안에서 열린 제작기에게만 답하도록 만들어져 있다.

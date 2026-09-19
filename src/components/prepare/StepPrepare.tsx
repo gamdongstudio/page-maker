@@ -3,11 +3,17 @@ import { useProject } from '@/store/ProjectStore';
 import type { Photo, ProjectData, SourceLink } from '@/types/project';
 import { makeMenu, uid } from '@/types/defaults';
 import {
-  checkUrl, collectFromUrl, forgetTools, guessSource, photoSrc, SOURCE_LABEL, SOURCE_READINESS, toolsStatus,
+  checkUrl, collectFromUrl, forgetTools, guessSource, normalizePlaceUrl, photoSrc, SOURCE_LABEL, SOURCE_READINESS, toolsStatus,
   type ToolsStatus,
 } from '@/services/import/baroduTools';
 import { downloadImages, photoSourceOf } from '@/services/import/downloadImages';
 import { parseStudioText } from '@/services/read/parseInfo';
+import {
+  cardFromFields, cardFromProject, cardLabel, hasBusiness, samePlace, type PlaceCard,
+} from '@/services/read/placeIdentity';
+import { keepCurrentWork } from '@/services/storage/works';
+import { isEmptyProject } from '@/components/flow/steps';
+import { EMPTY_STUDIO } from '@/types/studio';
 import { applyChange, reviewFields, type FieldChange } from '@/services/read/mergeFields';
 import { saveSnapshot, listSnapshots, openSnapshot } from '@/services/storage/snapshots';
 import { loadStudio } from '@/services/storage/studio';
@@ -31,6 +37,21 @@ import { ContentFields } from './ContentFields';
 
 type RowState = { phase: string; error?: string; offline?: boolean };
 
+/** 업체 확인 뒤 고른 것 — add: 지금 작업에 추가 · new: 새 작업 · fresh: 빈 작업의 옛 사진관 정보만 비우고 넣기 · cancel: 아무것도 넣지 않음 */
+type PlaceChoice = 'add' | 'new' | 'fresh' | 'cancel';
+interface PlaceAsk {
+  kind: 'same' | 'different' | 'unknown';
+  current: PlaceCard;
+  incoming: PlaceCard;
+  resolve: (c: PlaceChoice) => void;
+}
+
+/** 실제로 작업한 내용이 있는지 (예전에 적어둔 사진관 정보만 자동으로 들어온 빈 작업은 아니다) */
+function hasWorkContent(p: ProjectData): boolean {
+  return !!(p.product.name.trim() || p.photos.length || p.shoot?.productName || p.flow?.recommendedAt
+    || (p.sources ?? []).some((x) => x.state === 'ok'));
+}
+
 interface ImportReport {
   from: string;
   filled: FieldChange[];
@@ -41,7 +62,7 @@ interface ImportReport {
 }
 
 export function StepPrepare() {
-  const { project, update, replace } = useProject();
+  const { project, update, replace, newProject } = useProject();
   const latest = useRef(project);
   latest.current = project;
 
@@ -57,6 +78,32 @@ export function StepPrepare() {
   const [conflicts, setConflicts] = useState<FieldChange[]>([]);
   const [reports, setReports] = useState<ImportReport[]>([]);
   const pasteRef = useRef<HTMLTextAreaElement>(null);
+  /** 새 주소의 업체를 확인하는 중 — 답을 받기 전에는 지금 작업에 아무것도 넣지 않는다 */
+  const [placeAsk, setPlaceAsk] = useState<PlaceAsk | null>(null);
+  const [howToOpen, setHowToOpen] = useState(false);
+
+  const answerPlace = (c: PlaceChoice) => {
+    placeAsk?.resolve(c);
+    setPlaceAsk(null);
+  };
+
+  /**
+   * 새로 가져온 자료의 업체가 지금 작업과 같은지.
+   * 같은 업체 → [자료 추가] · 다른 업체 → [새 작업 시작] · 모르면 합치지 않는다.
+   */
+  const checkPlace = (incoming: PlaceCard): Promise<PlaceChoice> => {
+    const now = latest.current;
+    const current = cardFromProject(now);
+    const ask = (kind: PlaceAsk['kind']) =>
+      new Promise<PlaceChoice>((resolve) => setPlaceAsk({ kind, current, incoming, resolve }));
+
+    if (!incoming.placeId && !incoming.name) return ask('unknown');
+    if (!hasBusiness(current)) return Promise.resolve('add');
+    const same = samePlace(current, incoming);
+    /* 작업 내용이 없는 빈 작업 — 묻지 않는다. 다른 업체면 옛 사진관 정보만 비우고 넣는다 */
+    if (!hasWorkContent(now)) return Promise.resolve(same === 'same' ? 'add' : 'fresh');
+    return ask(same);
+  };
 
   /* 이미 연결돼 있으면 작게 알려주기만 한다. 연결 안 돼 있어도 아무것도 띄우지 않는다. */
   useEffect(() => { void toolsStatus().then(setTools); }, []);
@@ -162,7 +209,9 @@ export function StepPrepare() {
       if (!checked.ok) { setRow(row.id, { phase: '', error: checked.reason }); continue; }
 
       setRow(row.id, { phase: '글 가져오는 중…' });
-      const res = await collectFromUrl(checked.url);
+      /* 업체 번호가 보이는 네이버 주소는 검색어·지도 위치 같은 군더더기를 빼고 보낸다 (naver.me 는 PM Connect 가 푼다) */
+      const target = normalizePlaceUrl(checked.url);
+      const res = await collectFromUrl(target);
       if (!res.ok) {
         setRow(row.id, {
           phase: '',
@@ -198,19 +247,42 @@ export function StepPrepare() {
         } catch { /* 못 받으면 맨 위 영역 없이 대표사진부터 시작한다 */ }
       }
 
-      setRow(row.id, { phase: '정리하는 중…' });
-      await merge(
-        SOURCE_LABEL[res.sourceType],
-        [
-          res.title,
-          res.description,
-          res.text,
-          res.sourceType === 'naver-place' ? `네이버 플레이스: ${checked.url}` : '',
-        ].filter(Boolean).join('\n'),
-        photos,
-        failed,
-        { ...row, url: checked.url },
-      );
+      const text = [
+        res.title,
+        res.description,
+        res.text,
+        res.sourceType === 'naver-place' ? `네이버 플레이스: ${target}` : '',
+      ].filter(Boolean).join('\n');
+
+      /* 스마트플레이스는 먼저 업체를 확인한다 — 확인이 끝나기 전에는 지금 작업에 한 값도 넣지 않는다 */
+      if (res.sourceType === 'naver-place') {
+        setRow(row.id, { phase: '업체 확인 중…' });
+        const incoming = cardFromFields(parseStudioText(text), target);
+        const choice = await checkPlace(incoming);
+        if (choice === 'cancel') {
+          setRow(row.id, { phase: '', error: '가져오지 않았습니다. 지금 작업은 그대로입니다.' });
+          continue;
+        }
+        if (choice === 'new') {
+          const now = latest.current;
+          if (!(await keepCurrentWork(now, isEmptyProject(now)))) {
+            setRow(row.id, { phase: '', error: '지금 작업을 보관하지 못해 새 작업을 시작하지 않았습니다.' });
+            continue;
+          }
+          newProject(false);
+          setConflicts([]);
+          setReports([]);
+          /* 화면이 새 작업을 볼 때까지 기다린다 (다음 단계가 새 작업을 기준으로 비교하도록) */
+          await new Promise((r) => window.setTimeout(r, 80));
+        }
+        if (choice === 'fresh') {
+          update((d) => { d.studio = { ...EMPTY_STUDIO }; }, { label: 'studio.clear', merge: false });
+          await new Promise((r) => window.setTimeout(r, 30));
+        }
+        setRow(row.id, { phase: '✓ 네이버 업체 주소를 확인했습니다 · ' + cardLabel(incoming) });
+      }
+
+      await merge(SOURCE_LABEL[res.sourceType], text, photos, failed, { ...row, url: target });
       setRow(row.id, { phase: '완료' });
     }
     setBusy(false);
@@ -310,6 +382,57 @@ export function StepPrepare() {
             );
           })}
         </div>
+
+        <p className="field__hint">
+          네이버지도에서 업체를 연 뒤 공유 → 링크 복사 후 붙여넣으면 가장 정확합니다.{' '}
+          <button className="linkbtn" onClick={() => setHowToOpen((v) => !v)}>주소 복사하는 방법</button>
+        </p>
+        {howToOpen && (
+          <ol className="field__hint" style={{ margin: '4px 0 8px 18px', padding: 0 }}>
+            <li>네이버지도에서 업체를 엽니다.</li>
+            <li>공유를 누릅니다.</li>
+            <li>링크 복사 후 PageMaker에 붙여넣습니다.</li>
+          </ol>
+        )}
+
+        {placeAsk && (
+          <section className="box box--ask" role="dialog" aria-label="업체 확인">
+            {placeAsk.kind === 'same' && (
+              <>
+                <h3 className="box__title">같은 업체의 추가 자료로 확인됐습니다.</h3>
+                <p>{cardLabel(placeAsk.incoming)}</p>
+                <p>현재 작업에 추가할까요?</p>
+                <div className="askchoice">
+                  <button className="btn btn--main" onClick={() => answerPlace('add')}>자료 추가</button>
+                  <button className="btn btn--line" onClick={() => answerPlace('cancel')}>취소</button>
+                </div>
+              </>
+            )}
+            {placeAsk.kind === 'different' && (
+              <>
+                <h3 className="box__title">새로운 업체 주소입니다.</h3>
+                <p>현재 작업: <b>{cardLabel(placeAsk.current)}</b></p>
+                <p>새 주소: <b>{cardLabel(placeAsk.incoming)}</b></p>
+                <p>새 업체로 작업을 시작하시겠어요?</p>
+                <div className="askchoice">
+                  <button className="btn btn--main" onClick={() => answerPlace('new')}>새 작업 시작</button>
+                  <button className="btn btn--line" onClick={() => answerPlace('cancel')}>취소</button>
+                </div>
+                <p className="field__hint">지금 작업은 [내 작업]에 보관되어 나중에 다시 열 수 있습니다.</p>
+              </>
+            )}
+            {placeAsk.kind === 'unknown' && (
+              <>
+                <h3 className="box__title">업체 정보를 정확하게 확인하지 못했습니다.</h3>
+                <p>네이버지도에서 공유 → 링크 복사 후 다시 붙여넣어 주세요.</p>
+                <div className="askchoice">
+                  <button className="btn btn--main" onClick={() => { setHowToOpen(true); answerPlace('cancel'); }}>주소 복사하는 방법</button>
+                  <button className="btn btn--line" onClick={() => answerPlace('cancel')}>취소</button>
+                </div>
+              </>
+            )}
+          </section>
+        )}
 
         <div className="srcacts">
           <button className="btn btn--main" onClick={() => void fetchAll()} disabled={busy}>

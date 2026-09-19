@@ -32,7 +32,7 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
     }, { label: 'product.' + label });
 
   /* 영역과 묶인 칸은 영역에 실제로 들어 있는 글을 보여준다 */
-  const val = (key: keyof ProductInfo) => (isLinked(key) ? linkedValue(project, key) : p[key]);
+  const val = (key: keyof ProductInfo) => (isLinked(key) ? linkedValue(project, key) : (p[key] ?? ''));
 
   const setIncludes = (v: string) =>
     update((d) => {
