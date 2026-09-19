@@ -457,6 +457,10 @@ function PriceSectionBody({ menu, project, titleStyle, bodyStyle }: SectionProps
         return (m ? [m[1], m[2]] : ['', s]) as [string, string | undefined];
       }),
   ].filter(([, v]) => !!v) as [string, string][];
+  /* 대표 상품의 실제 이름 — 금액만 있으면 어느 상품 가격인지 알 수 없으므로 제목 아래에 보여준다 (카드형 B 는 머리에 이미 있음) */
+  const nameLine = prod.name?.trim()
+    ? <p style={{ margin: '0 0 6px', fontWeight: 700, fontSize: d.bodySize + 2 }}>{prod.name.trim()}</p>
+    : null;
 
   if (!list && !sale && includes.length === 0 && extras.length === 0) {
     return (
@@ -503,6 +507,7 @@ function PriceSectionBody({ menu, project, titleStyle, bodyStyle }: SectionProps
     return (
       <div>
         <h2 style={titleStyle}>{menu.title}</h2>
+        {nameLine}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
           {/* 정상가가 없으면 줄 그은 가격과 화살표를 그리지 않는다 */}
           {list && sale && (
@@ -536,6 +541,7 @@ function PriceSectionBody({ menu, project, titleStyle, bodyStyle }: SectionProps
     return (
       <div>
         <h2 style={titleStyle}>{menu.title}</h2>
+        {nameLine}
         {sale && (
           <p style={{ margin: '0 0 14px', fontSize: d.titleSize - 4, fontWeight: 800 }}>
             {sale}{pr?.people ? <span style={{ fontSize: d.bodySize, opacity: .6, marginLeft: 8 }}>{withGijun(pr.people)}</span> : null}
@@ -561,6 +567,7 @@ function PriceSectionBody({ menu, project, titleStyle, bodyStyle }: SectionProps
   return (
     <div>
       <h2 style={titleStyle}>{menu.title}</h2>
+      {nameLine}
       <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', justifyContent: d.align === 'center' ? 'center' : d.align === 'right' ? 'flex-end' : 'flex-start', flexWrap: 'wrap' }}>
         {percent > 0 && <span style={{ color: d.primary, fontWeight: 800, fontSize: 30 }}>{percent}%</span>}
         {list && percent > 0 && <span style={{ textDecoration: 'line-through', opacity: .45, fontSize: 18 }}>{list}</span>}
