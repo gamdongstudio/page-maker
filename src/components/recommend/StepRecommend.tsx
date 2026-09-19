@@ -175,7 +175,9 @@ export function StepRecommend({ onNext }: { onNext: () => void }) {
             <h3 className="box__title">메인 제목 고르기</h3>
             <div className="chiprow">
               {plan.searchTitles.map((t) => (
-                <button key={t} className={'chip' + (project.product.name === t ? ' is-on' : '')} onClick={() => pickTitle(t)}>{t}</button>
+                <button key={t} className={'chip' + (project.product.name === t ? ' is-on' : '')} onClick={() => pickTitle(t)}>
+                  {t === plan.productTitle && <em style={{ fontStyle: 'normal', opacity: .6, marginRight: 6 }}>상품정보형</em>}{t}
+                </button>
               ))}
             </div>
             <h3 className="box__title box__title--sub">한 줄 소개 고르기</h3>

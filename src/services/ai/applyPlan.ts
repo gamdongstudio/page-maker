@@ -261,7 +261,9 @@ export function applyScoped(
   /* fillEmpty — 빈 곳만 채운다 */
   const title = plan.searchTitles[titleIndex];
   const hero = plan.heroCopy[heroIndex];
-  if (!d.product.name.trim() && title) d.product.name = title;
+  /* 메인 제목이 비었거나 가져온 상품명 그대로라면 추천 제목으로 (실제 상품명은 shoot.productName 에 그대로 남는다) */
+  const rawName = d.product.name.trim();
+  if (title && (!rawName || rawName === (d.shoot?.productName ?? '').trim())) d.product.name = title;
   if (!d.product.tagline.trim() && hero) d.product.tagline = hero;
   if (!d.product.target.trim()) d.product.target = plan.audience;
   if (!d.product.category.trim() && plan.productName) d.product.category = plan.productName;

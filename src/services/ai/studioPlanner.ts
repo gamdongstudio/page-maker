@@ -33,6 +33,8 @@ export interface PlannedMenu {
 export interface StudioPlan {
   sourceLabel: string;
   productName: string;
+  /** 실제 상품명에 가까운 보조 제목 (후보 맨 아래 '상품정보형') — 없으면 빈 값 */
+  productTitle: string;
   searchTitles: string[];
   heroCopy: string[];
   subCopy: string;
@@ -295,9 +297,11 @@ export function planStudioPage(project: ProjectData): StudioPlan {
   return {
     sourceLabel:
       '넣어주신 자료와 촬영상품을 규칙대로 정리한 결과입니다. (진짜 AI 연결 전 · 사진은 올리신 것을 고르기만 합니다)',
-    productName: product,
-    searchTitles: searchTitles(product, area, shopName, recipe, shortEmphasis),
-    heroCopy: heroCopy(product, mood, area, shortEmphasis),
+    /* 촬영분야 — 실제 상품명('가족사진 기본촬영(4인이하)')에서 분야 이름만 ('가족사진') */
+    productName: shootField(product) || product,
+    searchTitles: searchTitles(product, area),
+    productTitle: productInfoTitle(product, area),
+    heroCopy: heroCopy(shootField(product) || product, mood, area, shortEmphasis),
     subCopy: subCopy(product, area, shopName),
     audience: recipe.audience,
     mainPhotoId: mainPhoto?.id ?? '',
@@ -601,23 +605,80 @@ function recommendLines(product: string, recipe: Recipe, emphasis: string): stri
 /* ------------------------------------------------------------------ */
 
 /** 검색용 제목 — 정보 중심 (과장 표현은 쓰지 않는다) */
-export function searchTitles(
-  product: string, area: string, shop: string, recipe?: Recipe, emphasis = '',
-): string[] {
-  /* 상품 종류를 고르지 않았으면 '촬영' 이 넘어온다 — '촬영 촬영' 이 되지 않게 */
-  const p = product && product !== '촬영' ? product : '사진';
-  const shot = /촬영$/.test(p) ? p : `${p} 촬영`;
-  const a = area ? `${area} ` : '';
-  const want = emphasis.trim();
-  const concept = recipe?.concepts[0] && recipe.concepts[0] !== '기본' ? recipe.concepts[0] : '';
-  const out = [
-    `${a}${shot}`,
-    want ? `${a}${want} ${p}` : `${a}${p} 예약 안내`,
-    shop ? `${a}${shop} ${p}` : `${a}${p} 가격 안내`,
-    concept ? `${a}${concept} ${p}` : `${a}${p} 스튜디오`,
-  ];
+/*
+ * 촬영분야별 제목 — 메인 제목과 스마트스토어 상품명에 쓴다.
+ *   지역 + 촬영분야 + 실제 촬영 내용·장점·사용 목적 (정보·검색 위주, 과한 감성 문구 없이)
+ *   지역은 주소에서 읽은 값만 쓰고, 없으면 넣지 않는다 (추측하지 않음 · ① 에서 직접 넣을 수 있다)
+ *   실제 상품명은 가격 영역에서 그대로 쓰고, 제목에는 기계적으로 붙이지 않는다.
+ */
+const FIELD_WORDS: [RegExp, string][] = [
+  [/리마인드/, '리마인드웨딩'],
+  [/증명|여권|비자|반명함|민증|면허/, '증명사진'],
+  [/취업|입사|면접/, '취업사진'],
+  [/프로필/, '프로필사진'],
+  [/아기|베이비|신생아|백일|돌/, '아기사진'],
+  [/반려|강아지|고양이|펫/, '반려동물사진'],
+  [/장수|영정/, '장수사진'],
+  [/복원/, '복원사진'],
+  [/스냅|행사/, '스냅사진'],
+  [/웨딩/, '웨딩사진'],
+  [/우정/, '우정사진'],
+  [/가족|부모님|환갑|칠순/, '가족사진'],
+];
+
+const FIELD_POINTS: Record<string, string[]> = {
+  가족사진: ['부모님과 함께하는 가족촬영', '가족·대가족 기념촬영', '자연스럽고 편안한 가족촬영'],
+  리마인드웨딩: ['결혼기념일 부부 촬영', '부모님 기념촬영', '가족과 함께하는 기념촬영'],
+  증명사진: ['여권·면허·취업사진 촬영', '용도별 규격 맞춤 촬영', '취업·여권·면허사진'],
+  아기사진: ['돌·백일·성장기념 촬영', '가족과 함께하는 기념촬영', '성장기록 촬영'],
+  프로필사진: ['개인·비즈니스 프로필 촬영', '취업·업무용 프로필 촬영', '상반신·전신 프로필 촬영'],
+  취업사진: ['면접·입사지원서 사진 촬영', '업종별 단정한 취업사진 촬영', '이력서용 취업사진 촬영'],
+  반려동물사진: ['반려견·반려묘 기념촬영', '보호자와 함께하는 반려동물 촬영', '반려동물 프로필 촬영'],
+  장수사진: ['부모님 장수사진 촬영', '장수·영정 액자 촬영', '편안한 분위기의 장수사진 촬영'],
+  복원사진: ['오래된 사진 복원', '훼손된 사진 복원·보정', '가족사진 복원·인화'],
+  스냅사진: ['행사·야외 스냅 촬영', '돌잔치·행사 스냅 촬영', '자연스러운 순간 스냅 촬영'],
+  웨딩사진: ['웨딩 스튜디오 촬영', '커플·웨딩 기념촬영', '웨딩액자 촬영'],
+  우정사진: ['친구·단체 우정 촬영', '기념일 우정사진 촬영', '단체 기념촬영'],
+};
+
+/** 상품명·상품 종류에서 촬영분야 이름만 ('가족사진 기본촬영(4인이하)' → '가족사진'). 모르면 적힌 그대로 */
+export function shootField(product: string): string {
+  const p = (product || '').trim();
+  if (!p || p === '촬영') return '';
+  return FIELD_WORDS.find(([re]) => re.test(p))?.[1] ?? p;
+}
+
+/** 지역은 맨 앞에 한 번만 */
+function withArea(area: string, text: string): string {
+  const a = (area || '').trim();
+  const t = text.trim();
+  if (!a) return t;
+  return t.startsWith(a) ? t : `${a} ${t}`;
+}
+
+export function searchTitles(product: string, area: string): string[] {
+  const field = shootField(product) || '사진';
+  const points = FIELD_POINTS[field] ?? ['촬영', '기념촬영', '스튜디오 촬영'];
+  const out = points.map((pt) => withArea(area, `${field} ${pt}`));
+  /* 실제 상품명에 가까운 제목은 맨 아래 보조 후보로만 */
+  const extra = productInfoTitle(product, area);
+  if (extra) out.push(extra);
   /* 같은 낱말을 억지로 반복하지 않는다 */
   return [...new Set(out.map((t) => stripBanned(t.trim())))].filter(Boolean);
+}
+
+/** 상품정보형 보조 제목 — '가족사진 기본촬영(4인이하)' → '구미 가족사진 4인 이하 기본촬영'. 분야 이름뿐이면 만들지 않는다 */
+export function productInfoTitle(product: string, area: string): string {
+  const p = (product || '').trim();
+  const field = shootField(p);
+  if (!p || !field || p === field) return '';
+  const rest = p.replace(field, '').trim();
+  /* '증명&여권사진' 처럼 사진 종류 이름뿐이면 더할 정보가 없다 */
+  if (/^[가-힣&·,/\s]*사진$/.test(rest) && !/\d/.test(rest)) return '';
+  const paren = rest.match(/\(([^)]*)\)/)?.[1]?.trim() ?? '';
+  const body = rest.replace(/\([^)]*\)/g, '').replace(/\s{2,}/g, ' ').trim();
+  const text = [paren, body].filter(Boolean).join(' ').replace(/(\d+)\s*인\s*(이하|이상)/g, '$1인 $2').trim();
+  return text ? stripBanned(withArea(area, `${field} ${text}`)) : '';
 }
 
 /** 대문 카피 — 고객 설득 중심 (검색 제목과 역할이 다르다) */

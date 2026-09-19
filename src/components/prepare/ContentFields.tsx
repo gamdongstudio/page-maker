@@ -175,7 +175,8 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
 function pricePrompt(project: ReturnType<typeof useProject>['project']): string {
   const s = project.studio;
   const pr = project.pricing;
-  const name = project.product.name || project.shoot?.productName || '촬영상품';
+  /* 메인 제목이 아니라 실제 상품명을 먼저 쓴다 */
+  const name = project.shoot?.productName || project.product.name || '촬영상품';
   return [
     '사진관 상세페이지에 사용할 세련된 가격표 이미지를 만들어줘.',
     '이미지 안의 숫자와 상품명은 아래 내용을 정확히 사용하고 임의로 바꾸지 마.',

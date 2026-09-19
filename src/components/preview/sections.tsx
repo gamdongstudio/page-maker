@@ -458,8 +458,10 @@ function PriceSectionBody({ menu, project, titleStyle, bodyStyle }: SectionProps
       }),
   ].filter(([, v]) => !!v) as [string, string][];
   /* 대표 상품의 실제 이름 — 금액만 있으면 어느 상품 가격인지 알 수 없으므로 제목 아래에 보여준다 (카드형 B 는 머리에 이미 있음) */
-  const nameLine = prod.name?.trim()
-    ? <p style={{ margin: '0 0 6px', fontWeight: 700, fontSize: d.bodySize + 2 }}>{prod.name.trim()}</p>
+  /* 메인 제목(product.name)과 따로 — 가져오거나 고른 실제 상품명을 먼저 쓴다 */
+  const itemName = (project.shoot?.productName || prod.name || '').trim();
+  const nameLine = itemName
+    ? <p style={{ margin: '0 0 6px', fontWeight: 700, fontSize: d.bodySize + 2 }}>{itemName}</p>
     : null;
 
   if (!list && !sale && includes.length === 0 && extras.length === 0) {
@@ -490,7 +492,7 @@ function PriceSectionBody({ menu, project, titleStyle, bodyStyle }: SectionProps
           border: `2px solid ${d.primary}`, borderRadius: d.photoRadius || 12, overflow: 'hidden',
         }}>
           <div style={{ background: d.primary, color: pickReadable(d.primary), padding: '14px 18px' }}>
-            <b style={{ fontSize: d.bodySize + 2 }}>{prod.name?.trim() || (pr?.people ? withGijun(pr.people) : '기본 패키지')}</b>
+            <b style={{ fontSize: d.bodySize + 2 }}>{itemName || (pr?.people ? withGijun(pr.people) : '기본 패키지')}</b>
           </div>
           <div style={{ padding: '18px' }}>
             {sale && <p style={{ margin: '0 0 14px', fontSize: d.titleSize, fontWeight: 800 }}>{sale}</p>}
