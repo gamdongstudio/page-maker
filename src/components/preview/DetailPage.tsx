@@ -64,6 +64,8 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
   const visible = shownMenus(project);
   const sidePad = narrow ? Math.min(d.padding, 20) : d.padding;
   const contentWidth = width - sidePad * 2;
+  /** 최신 소식 이미지 바로 뒤의 이벤트 — 같은 이벤트라 한 묶음으로 붙여 보인다 */
+  const joinsNext = (i: number) => visible[i]?.kind === 'news' && visible[i + 1]?.kind === 'event';
 
   return (
     <EditingContext.Provider value={!!edit}>
@@ -74,7 +76,7 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
         <div key={menu.id}>
           <div
             className={'detail__menu' + (edit && selectedId === menu.id ? ' is-selected' : '')}
-            style={{ marginBottom: i === visible.length - 1 || !edit ? 0 : d.menuGap }}
+            style={{ marginBottom: i === visible.length - 1 || !edit || joinsNext(i) ? 0 : d.menuGap }}
             onClick={edit ? () => edit.onJump('menus', menu.id) : undefined}
             data-menu-id={menu.id}
             draggable={!!edit}
@@ -107,17 +109,17 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
             </EditingContext.Provider>
           </div>
           {/* 영역 구분선 — 스타일에 따라 (미리보기와 저장 이미지 모두) */}
-          {d.divider === 'line' && i < visible.length - 1 && (
+          {d.divider === 'line' && i < visible.length - 1 && !joinsNext(i) && (
             <div aria-hidden style={{
               width: 44, height: 1, margin: edit ? `-${Math.round(d.menuGap / 2)}px auto ${Math.round(d.menuGap / 2) - 1}px` : '0 auto -1px',
               background: d.text, opacity: 0.22,
               position: 'relative', top: edit ? 0 : Math.floor(d.menuGap / 2) - 14,
             }} />
           )}
-          {edit && <AddHere onAdd={() => edit.onAddAt(i + 1)} />}
+          {edit && !joinsNext(i) && <AddHere onAdd={() => edit.onAddAt(i + 1)} />}
           {/* 저장 이미지에서만 — 영역 사이 가운데에 눈에 안 보이는 경계선을 둔다.
               그림을 자를 때 이 선을 찾아 **영역 단위로** 자르고, 저장 직전에 배경색으로 덮는다. */}
-          {!edit && i < visible.length - 1 && (
+          {!edit && i < visible.length - 1 && !joinsNext(i) && (
             <div style={{ height: d.menuGap, position: 'relative' }} aria-hidden>
               <i style={{
                 position: 'absolute', left: 0, right: 0, top: Math.floor(d.menuGap / 2),

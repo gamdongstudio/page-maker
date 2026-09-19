@@ -209,9 +209,10 @@ export function recipeFor(productName: string): Recipe {
  * → 추천 대상 → 이용 방법 → 예약·문의(마무리)
  */
 const PAGE_ORDER: MenuKind[] = [
-  /* 최신 소식 이미지 → 메인(업체명·대표사진) → 소개 → 촬영상품 → 가격 → 갤러리 → 이벤트·혜택 → 나머지 */
-  'news', 'main', 'brand', 'intro', 'shootConcept', 'price', 'compare', 'gallery',
-  'event', 'perks', 'benefit', 'review', 'recommend',
+  /* 최신 이벤트 블록(최신 소식 이미지 + 이벤트 제목·기간·핵심) → 메인(업체명·대표사진) → 소개 → 촬영상품 → 가격 → 갤러리 → 나머지.
+     이벤트가 없으면 이벤트 영역은 숨겨지므로 메인부터 시작한다 */
+  'news', 'event', 'main', 'brand', 'intro', 'shootConcept', 'price', 'compare', 'gallery',
+  'perks', 'benefit', 'review', 'recommend',
   'process', 'howto', 'prepare', 'caution', 'faq', 'cta',
 ];
 
@@ -370,11 +371,14 @@ function buildMenu(kind: MenuKind, c: Ctx): PlannedMenu {
 
     case 'event': {
       const has = !!(ev?.title || ev?.body || ev?.eventPrice || ev?.period);
+      /* 최신 소식 이미지가 있으면 그것이 이 이벤트의 사진이다 — 업체사진을 한 장 더 넣지 않는다 (한 묶음) */
+      const own = c.project.photos.some((p) => p.news) ? [] : photoIds;
       return {
         ...base,
+        photoIds: own,
         title: ev?.title || '이벤트',
         body: ev?.body ?? '',
-        template: pickEventTemplate(ev, photoIds.length),
+        template: pickEventTemplate(ev, own.length),
         hidden: !has,
       };
     }

@@ -85,6 +85,20 @@ function splitLines(lines: string[]): { title: string; body: string }[] {
 /* 이벤트                                                              */
 /* ------------------------------------------------------------------ */
 
+/**
+ * 이벤트 글 요약 — 설명 1~2문장 + 핵심 항목(•·-·A. 로 시작하는 줄) 최대 4개.
+ * 없는 혜택을 만들지 않는다. 원문에 있는 줄을 골라 담기만 한다.
+ */
+export function eventSummary(raw: string): string {
+  const lines = (raw || '').split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length <= 4) return lines.join('\n');
+  const isItem = (l: string) => /^([•·\-✓✔▶※]|[A-Z가-힣0-9][.)]\s)/.test(l);
+  const intro = lines.filter((l) => !isItem(l) && !/^[📍☎]/u.test(l)).slice(0, 2);
+  const items = [...new Set(lines.filter((l) => /^[A-Z0-9][.)]\s/.test(l)))];
+  const bullets = items.length ? items : [...new Set(lines.filter((l) => /^[•·\-✓✔▶]/.test(l)))];
+  return [...intro, ...bullets.slice(0, 4)].join('\n');
+}
+
 export function EventSection({ menu, project, titleStyle, bodyStyle, boxWidth }: SectionProps) {
   const d = project.design;
   const ev = project.event;
@@ -93,7 +107,8 @@ export function EventSection({ menu, project, titleStyle, bodyStyle, boxWidth }:
   const sale = formatWon(ev?.eventPrice ?? '');
   const percent = discountPercent(ev?.listPrice, ev?.eventPrice);
   const name = ev?.title || menu.title;
-  const body = ev?.body || menu.body;
+  /* 가져온 원문은 그대로 두고, 상세페이지에는 핵심만 짧게 보여준다 */
+  const body = eventSummary(ev?.body || menu.body);
   const photos = photosOf(menu, project);
 
   if (tpl === 'C') {

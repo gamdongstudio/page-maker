@@ -22,8 +22,6 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
   const { project, update } = useProject();
   const p = project.product;
   const [studioOpen, setStudioOpen] = useState(false);
-  const [gptPrompt, setGptPrompt] = useState('');
-  const [gptCopied, setGptCopied] = useState(false);
 
   const set = (key: keyof ProductInfo, label = key) => (v: string) =>
     update((d) => {
@@ -84,38 +82,6 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
         placeholder={'한 줄에 하나씩\n예) 원본 전체 제공\n보정본 2장\n11x14 액자'}
       />
 
-      {mode === 'edit' && (
-        <section className="box">
-          <h3 className="box__title">GPT로 홍보 이미지 만들기</h3>
-          <p className="box__hint">현재 입력된 가격·이벤트 정보로 프롬프트만 만들어드립니다. PageMaker가 이미지를 임의로 만들거나 갤러리에 넣지는 않습니다.</p>
-          <div className="srcacts">
-            <button className="btn btn--line" onClick={() => { setGptPrompt(pricePrompt(project)); setGptCopied(false); }}>
-              GPT로 가격표 만들기
-            </button>
-            <button className="btn btn--line" onClick={() => { setGptPrompt(eventPrompt(project)); setGptCopied(false); }}>
-              GPT로 이벤트 이미지 만들기
-            </button>
-          </div>
-          {gptPrompt && (
-            <div className="stack">
-              <textarea className="field__input" rows={8} readOnly value={gptPrompt} aria-label="GPT 이미지 제작 프롬프트" />
-              <div className="srcacts">
-                <button className="btn btn--line" onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(gptPrompt);
-                    setGptCopied(true);
-                  } catch {
-                    setGptCopied(false);
-                  }
-                }}>{gptCopied ? '복사됨' : '프롬프트 복사'}</button>
-                <button className="btn btn--main" onClick={() => window.open('https://chatgpt.com/', '_blank', 'noopener,noreferrer')}>
-                  ChatGPT 열기
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
       <Field
         label="상품 설명" value={val('description')} onChange={set('description')} multiline rows={3}
         placeholder="상품을 자세히 소개해주세요"
@@ -168,6 +134,79 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+const GPT_GUIDE = {
+  price: {
+    button: 'GPT로 가격표 만들기',
+    filled: ['업체명', '상품명', '가격', '구성', '설명'],
+    free: ['배경색', '전체 분위기', '가격 글씨 크기', '사용할 사진', '카드형 / 깔끔한 구성'],
+    asks: [
+      '상품명과 가격은 그대로 두고 디자인만 더 깔끔하게 바꿔줘.',
+      '가격 숫자를 더 크게 보여주고 다른 글씨는 조금 줄여줘.',
+      '현재 내용은 그대로 두고 배경만 밝은 베이지색으로 바꿔줘.',
+      '상품 순서는 그대로 두고 첫 번째 상품을 가장 눈에 띄게 만들어줘.',
+    ],
+  },
+  event: {
+    button: 'GPT로 이벤트 이미지 만들기',
+    filled: ['업체명', '이벤트 제목', '기간', '설명', '혜택'],
+    free: ['배경색', '분위기', '사용할 사진', '강조할 혜택', '글씨 크기'],
+    asks: [
+      '제목·기간·혜택은 그대로 두고 디자인만 더 깔끔하게 바꿔줘.',
+      '기간과 혜택을 더 크게 보여줘.',
+      '첨부한 가족사진을 크게 사용하고 글씨가 얼굴을 가리지 않게 해줘.',
+      '내용은 그대로 두고 전체 색감만 따뜻한 베이지톤으로 바꿔줘.',
+    ],
+  },
+} as const;
+
+/**
+ * GPT로 가격표 / 이벤트 이미지 만들기 — 가격 안내 · 이벤트·혜택 섹션 편집창에서 쓴다.
+ * PageMaker 는 이미지를 만들지 않는다. 실제 값이 들어간 요청문만 만들고, 복사 · ChatGPT 열기를 돕는다.
+ */
+export function GptPromptBox({ kind }: { kind: 'price' | 'event' }) {
+  const { project } = useProject();
+  const [prompt, setPrompt] = useState('');
+  const [copied, setCopied] = useState(false);
+  const g = GPT_GUIDE[kind];
+
+  return (
+    <div className="stack">
+      <button className="btn btn--line" onClick={() => { setPrompt(kind === 'price' ? pricePrompt(project) : eventPrompt(project)); setCopied(false); }}>
+        {g.button}
+      </button>
+      {prompt && (
+        <div className="stack">
+          <p className="field__hint"><b>① PageMaker가 자동으로 넣었습니다</b> — {g.filled.join(' · ')}</p>
+          <textarea className="field__input" rows={8} readOnly value={prompt} aria-label="GPT 이미지 제작 프롬프트" />
+          <p className="field__hint"><b>② 여기 부분만 원하시면 수정하시면 됩니다</b> — {g.free.join(' · ')}</p>
+          <div className="srcacts">
+            <button className="btn btn--line" onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(prompt);
+                setCopied(true);
+              } catch {
+                setCopied(false);
+              }
+            }}>{copied ? '복사됨' : '프롬프트 복사'}</button>
+            <button className="btn btn--main" onClick={() => window.open('https://chatgpt.com/', '_blank', 'noopener,noreferrer')}>
+              ChatGPT 열기
+            </button>
+          </div>
+          <div className="field__hint">
+            <b>③ 원하는 결과가 나오지 않으면 ChatGPT에 이렇게 수정 요청해보세요</b>
+            <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
+              {g.asks.map((x) => <li key={x}>“{x}”</li>)}
+            </ul>
+          </div>
+          <p className="field__hint">만든 이미지는 이 섹션의 [사진 올리기]로 넣으시면 됩니다.</p>
+        </div>
+      )}
     </div>
   );
 }

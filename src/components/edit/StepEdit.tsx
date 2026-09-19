@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ContentFields } from '@/components/prepare/ContentFields';
 import { PhotoLibrary } from '@/components/media/PhotoLibrary';
 import { StepMenus } from '@/components/menus/StepMenus';
 import { StepDesign } from '@/components/design/StepDesign';
 import { ChatGptPolish } from '@/components/recommend/ChatGptPolish';
-import { EDIT_TABS, type EditTab } from '@/components/flow/steps';
+import { type EditTab } from '@/components/flow/steps';
 import { revealTop } from '@/utils/scrollBox';
 import { PageCheck } from './PageCheck';
 
@@ -12,71 +12,66 @@ import { PageCheck } from './PageCheck';
  * ③ 보면서 고치기
  *
  * 왼쪽 = 실시간 미리보기 (그대로)
- * 오른쪽 = [내용] [사진] [구성] [디자인]
+ * 오른쪽 = 섹션 목록. 고치고 싶은 섹션 제목을 누르면 그 자리에서 글·사진·모양을 한 번에 고친다.
  *
- * 오른쪽에서 고치면 왼쪽이 바로 바뀐다. 둘 다 같은 작업 내용을 본다.
- *
- * 탭을 누르면 **누른 탭이 곧바로 켜진다.**
- * 사진이 많아 내용을 그리는 데 시간이 걸리면 빈 칸 대신 '불러오는 중…' 을 보여준다.
+ * 예전의 [내용] [사진] [구성] [디자인] 탭은 없앴다.
+ * 전체에 걸친 것(전체 디자인 · 사진 보관함 · 전체 내용)은 목록 아래 작은 펼치기로 둔다.
  */
-export function StepEdit({ tab, onTab, focusMenuId, onFocused, onSelect }: {
+type Extra = 'design' | 'photos' | 'content';
+
+const EXTRAS: { key: Extra; label: string }[] = [
+  { key: 'design', label: '전체 디자인 (스타일·글씨체)' },
+  { key: 'photos', label: '사진 보관함' },
+  { key: 'content', label: '전체 내용 한 번에 보기' },
+];
+
+export function StepEdit({ onTab, focusMenuId, onFocused, onSelect }: {
   tab: EditTab;
   onTab: (t: EditTab) => void;
   focusMenuId?: string | null;
   onFocused?: () => void;
   onSelect?: (id: string | null) => void;
 }) {
-  const [pending, startTransition] = useTransition();
-  /** 누른 탭 — 내용보다 먼저 켜 보인다 */
-  const [picked, setPicked] = useState<EditTab>(tab);
-  const tabsRef = useRef<HTMLDivElement>(null);
+  const [extra, setExtra] = useState<Extra | null>(null);
+  const extraRef = useRef<HTMLDivElement>(null);
 
-  /* 미리보기에서 영역을 눌러 탭이 바뀐 경우도 맞춘다 */
-  useEffect(() => { setPicked(tab); }, [tab]);
+  /* 미리보기에서 영역을 누르면 섹션 목록이 그 섹션을 연다 (예전 탭 전환 신호는 섹션 목록으로 모은다) */
+  useEffect(() => { if (focusMenuId) onTab('menus'); }, [focusMenuId, onTab]);
 
+  /* 상세페이지 점검의 [고치러 가기] — 섹션 목록이면 그대로, 나머지는 해당 펼치기를 연다 */
   const go = (t: EditTab) => {
-    setPicked(t);
-    /* 아래로 내려가 있었다면 탭이 보이는 자리로 — 새 내용의 시작이 보이게 */
-    revealTop(tabsRef.current);
-    startTransition(() => onTab(t));
+    if (t === 'menus') return;
+    setExtra(t as Extra);
+    window.setTimeout(() => revealTop(extraRef.current), 30);
   };
-
-  const loading = pending || picked !== tab;
 
   return (
     <div className="stack edit">
       <PageCheck onGo={go} />
 
-      <div className="edittabs" role="tablist" aria-label="고칠 곳" ref={tabsRef}>
-        {EDIT_TABS.map((t) => (
-          <button
-            key={t.key}
-            role="tab"
-            aria-selected={picked === t.key}
-            className={'edittab' + (picked === t.key ? ' is-on' : '')}
-            onClick={() => go(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <p className="field__hint">고치고 싶은 섹션 제목을 누르세요.</p>
+      <StepMenus focusMenuId={focusMenuId} onFocused={onFocused} onSelect={onSelect} />
 
-      <div className="edittab__body" role="tabpanel" aria-busy={loading}>
-        {loading && <p className="edittab__loading" aria-live="polite">불러오는 중…</p>}
-        <div className={loading ? 'edittab__stale' : undefined}>
-          {tab === 'content' && (
-            <>
-              <p className="field__hint">
-                영역마다 다른 글은 <b>[구성]</b>에서 그 영역을 열어 고치거나, 왼쪽 글자를 눌러 바로 고칠 수 있어요.
-              </p>
-              <ContentFields mode="edit" />
-              <ChatGptPolish />
-            </>
-          )}
-          {tab === 'photos' && <PhotoLibrary />}
-          {tab === 'menus' && <StepMenus focusMenuId={focusMenuId} onFocused={onFocused} onSelect={onSelect} />}
-          {tab === 'design' && <StepDesign />}
-        </div>
+      <div className="stack" ref={extraRef}>
+        {EXTRAS.map((x) => (
+          <div key={x.key}>
+            <button className="linkbtn" onClick={() => setExtra((v) => (v === x.key ? null : x.key))} aria-expanded={extra === x.key}>
+              {extra === x.key ? '▴ ' : '▾ '}{x.label}
+            </button>
+            {extra === x.key && (
+              <div className="box" style={{ marginTop: 6 }}>
+                {x.key === 'design' && <StepDesign />}
+                {x.key === 'photos' && <PhotoLibrary />}
+                {x.key === 'content' && (
+                  <>
+                    <ContentFields mode="edit" />
+                    <ChatGptPolish />
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
