@@ -4,7 +4,7 @@ import { PHOTO_KIND_LABEL, type FontKey, type MenuItem, type PricePackage } from
 import { FONT_KEYS, FONTS } from '@/config/fonts';
 import { uid } from '@/types/defaults';
 import { templatesFor } from '@/components/preview/templates';
-import { fieldProducts, planStudioPage, type PlannedMenu, type StudioPlan } from '@/services/ai/studioPlanner';
+import { fieldProducts, planStudioPage, promoteProduct, type PlannedMenu, type StudioPlan } from '@/services/ai/studioPlanner';
 import { regenerateMenu } from '@/services/ai/applyPlan';
 import { EMPTY_BRIEF } from '@/types/project';
 import { EMPTY_EVENT, EMPTY_PRICING } from '@/types/studio';
@@ -216,10 +216,10 @@ function PriceFields() {
         <label className="field">
           <span className="field__label">대표 상품</span>
           <select
-            className="mini" value={project.shoot?.pickedProduct ?? ''}
-            onChange={(e) => { const v = e.target.value; update((d) => { d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), pickedProduct: v }; }, { label: 'shoot.pickedProduct', merge: false }); }}
+            className="mini" value={fp.rep?.name ?? ''}
+            onChange={(e) => { const v = e.target.value; if (!v) return; update((d) => { promoteProduct(d, v); }, { label: 'shoot.repProduct', merge: false }); }}
           >
-            <option value="">자동 — {fp.rep ? fp.rep.name : '맞는 상품 없음'}</option>
+            <option value="">{fp.rep ? fp.rep.name : '대표 상품을 골라주세요'}</option>
             {fp.all.map((x) => <option key={x.name} value={x.name}>{x.name} {x.price}</option>)}
           </select>
         </label>

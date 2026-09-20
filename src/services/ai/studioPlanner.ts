@@ -1,5 +1,7 @@
 import type { MenuKind, Photo, ProjectData } from '@/types/project';
 import { shapeOf } from '@/utils/image';
+import { EMPTY_BRIEF } from '@/types/project';
+import { EMPTY_PRICING } from '@/types/studio';
 import { stripBanned } from './types';
 
 /**
@@ -719,15 +721,75 @@ export function fieldProducts(p: ProjectData): {
     return { field, rep, others: all.filter((x) => x !== rep), matched: true, all };
   }
   const hit = all.filter((x) => shootField(x.name) === field);
-  /* 분야 이름만 적힌 것(예: '가족사진')보다 실제 상품(예: '가족사진(의상대여무료)')을 먼저 쓴다 —
-     분야를 바꾸기 전 가격이 그대로 남는 일을 막는다 */
   const real = hit.filter((x) => x.name.trim() !== field);
-  /* 직접 고른 대표 상품은 지금 분야와 맞을 때만 쓴다 (분야를 바꾸면 다시 정한다) */
-  const keep = picked && hit.includes(picked) ? picked : undefined;
-  const rep = keep ?? real[0] ?? hit[0] ?? null;
-  /* 실제 상품이 있으면 분야 이름만 적힌 자리(예전 분야의 가격이 남아 있을 수 있다)는 목록에서도 뺀다 */
+  /*
+   * 대표 자리에 있는 상품을 그대로 쓴다.
+   * 촬영분야를 바꾸면 applyField 가 그 분야 상품으로 대표를 다시 잡고,
+   * 사용자가 직접 고른 상품도 대표 자리로 올라오므로 — 오른쪽 입력칸과 왼쪽 미리보기가 늘 같은 상품을 본다.
+   */
+  const rep = picked ?? all.find((x) => x.main) ?? real[0] ?? hit[0] ?? null;
   const others = hit.filter((x) => x !== rep && !(real.length > 0 && x.name.trim() === field));
   return { field, rep, others, matched: !!rep, all };
+}
+
+/** '150,000원' → '150000' */
+function wonDigits(price: string): string {
+  return (price || '').replace(/[^\d]/g, '');
+}
+
+/** '이름 150,000원' 한 줄로 */
+function priceLine(x: FieldProduct): string {
+  return x.price ? `${x.name} ${x.price}` : '';
+}
+
+/**
+ * 고른 상품을 대표 자리로 올린다.
+ * 지금 대표 상품은 '그 밖의 가격' 으로 내려 보관한다 — 가져온 상품은 하나도 사라지지 않는다.
+ * 상품명·가격·구성이 한 번에 같이 바뀌므로 오른쪽 입력칸과 왼쪽 미리보기가 어긋나지 않는다.
+ */
+export function promoteProduct(d: ProjectData, name: string): void {
+  const all = allProducts(d);
+  const next = all.find((x) => x.name === name);
+  if (!next) return;
+  const won = wonDigits(next.price);
+  const rest = all.filter((x) => x !== next).map(priceLine).filter(Boolean);
+  d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), productName: next.name, pickedProduct: '' };
+  d.product.listPrice = won;
+  d.product.salePrice = '';
+  d.pricing = {
+    ...EMPTY_PRICING, ...(d.pricing ?? {}),
+    listPrice: won, eventPrice: '', includes: next.includes, etcExtra: rest.join('\n'),
+  };
+}
+
+/**
+ * 촬영분야를 고쳤을 때 — 그 분야의 대표 상품으로 기준 상품을 다시 잡는다.
+ * 맞는 상품이 없으면 다른 분야 가격을 대신 쓰지 않고 비워 둔다 (가격 안내에서 직접 고르도록 안내).
+ */
+export function applyField(d: ProjectData, field: string): void {
+  d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), field, pickedProduct: '' };
+  d.product.category = field;
+
+  const all = allProducts(d);
+  if (all.length === 0) {
+    /* 아직 가져온 상품이 없으면 분야 이름만 적어둔다 (직접 입력해서 쓰는 경우) */
+    d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), field, productName: field, pickedProduct: '' };
+    return;
+  }
+
+  const hit = all.filter((x) => shootField(x.name) === field);
+  const real = hit.filter((x) => x.name.trim() !== field);
+  const rep = real[0] ?? hit[0];
+  if (rep) { promoteProduct(d, rep.name); return; }
+
+  const rest = all.map(priceLine).filter(Boolean);
+  d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), field, productName: '', pickedProduct: '' };
+  d.product.listPrice = '';
+  d.product.salePrice = '';
+  d.pricing = {
+    ...EMPTY_PRICING, ...(d.pricing ?? {}),
+    listPrice: '', eventPrice: '', includes: '', etcExtra: rest.join('\n'),
+  };
 }
 
 /** 지역은 맨 앞에 한 번만 */

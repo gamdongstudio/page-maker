@@ -4,7 +4,7 @@ import { EMPTY_BRIEF, type ProductInfo } from '@/types/project';
 import { EMPTY_PRICING, EMPTY_STUDIO, type ShootProduct, type StudioInfo } from '@/types/studio';
 import { loadShootProducts, saveShootProducts } from '@/services/storage/studio';
 import { setPrice } from '@/utils/photoOps';
-import { FIELD_NAMES, fieldProducts } from '@/services/ai/studioPlanner';
+import { applyField, fieldProducts } from '@/services/ai/studioPlanner';
 import { isLinked, linkedValue, revealWhenFilled, setLinked } from './sectionText';
 import { Field } from '@/components/editor/Fields';
 import { StudioForm } from '@/components/studio/StudioForm';
@@ -267,15 +267,12 @@ function ProductKind() {
 
   const pick = (name: string) =>
     update((d) => {
-      const cur = (d.shoot?.productName ?? '').trim();
-      /* 가져온 실제 상품명(예: 가족사진 기본촬영(4인이하))은 그대로 두고, 분야 이름뿐일 때만 바꾼다 */
-      const keep = !!cur && !FIELD_NAMES.includes(cur) && cur !== d.shoot?.field;
-      d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), productName: keep ? cur : name, field: name, pickedProduct: '' };
+      /* 분야만 바꾸는 것이 아니라 그 분야의 대표 상품·가격·구성까지 같이 잡는다 */
+      applyField(d, name);
       /*
        * 상품 종류만 정한다. 상품명·한 줄 소개는 채우지 않는다.
        * (예전에는 상품명에 '가족사진' 만 들어가서 자동 추천이 제목을 만들지 못했다)
        */
-      d.product.category = name;
       if (!d.title || d.title === '새 상세페이지') d.title = `${name} 상세페이지`;
     }, { label: 'shoot.product', merge: false });
 
