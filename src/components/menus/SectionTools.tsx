@@ -125,7 +125,9 @@ export function SectionTools({ menu }: { menu: MenuItem }) {
       {/* 2. 사진 — 이 섹션에 보여줄 사진을 고르거나 새로 올린다 */}
       {menu.kind !== 'cta' && (
         <div className="stack">
-          <span className="field__label">사진</span>
+          <span className="field__label">
+            사진{menu.photoIds.length > 0 ? ` — ${menu.photoIds.length}장 선택됨` : ''}
+          </span>
           <MenuPhotos menuId={menu.id} />
           <PhotoUpload menuId={menu.id} />
         </div>
@@ -289,7 +291,7 @@ function PhotoUpload({ menuId }: { menuId: string }) {
   };
   return (
     <>
-      <button className="tiny" onClick={() => ref.current?.click()}>사진 올리기</button>
+      <button className="tiny" onClick={() => ref.current?.click()}>사진 추가 (내 컴퓨터에서)</button>
       <input ref={ref} type="file" accept="image/*" multiple hidden onChange={(e) => { void onFiles(e.target.files); e.target.value = ''; }} />
     </>
   );
@@ -304,7 +306,7 @@ export function MenuPhotos({ menuId }: { menuId: string }) {
   if (!menu) return null;
 
   if (project.photos.length === 0) {
-    return <p className="menu__hint">② 사진·영상에서 사진을 올리면 여기서 고를 수 있어요.</p>;
+    return <p className="menu__hint">아직 사진이 없습니다. 아래 [사진 추가]로 넣어주세요.</p>;
   }
 
   const toggle = (photoId: string) =>
@@ -319,7 +321,7 @@ export function MenuPhotos({ menuId }: { menuId: string }) {
   return (
     <div className="menuphotos">
       <span className="menu__hint">
-        이 섹션에서 보여줄 사진 {menu.photoIds.length > 0 ? `(${menu.photoIds.length}장 선택)` : '(고르지 않으면 알아서 배치됩니다)'}
+        가져온 사진에서 고르기 {menu.photoIds.length > 0 ? `· ${menu.photoIds.length}장 선택됨` : '· 고르지 않으면 알아서 배치됩니다'}
       </span>
       <div className="menuphotos__grid">
         {project.photos.map((p) => (
@@ -333,9 +335,7 @@ export function MenuPhotos({ menuId }: { menuId: string }) {
           </button>
         ))}
       </div>
-      <p className="field__hint">
-        고른 사진을 그대로 씁니다. 얼굴·표정·옷을 바꾸지 않습니다.
-      </p>
+      <p className="field__hint">다시 누르면 선택이 풀립니다. 고른 사진을 그대로 씁니다.</p>
     </div>
   );
 }

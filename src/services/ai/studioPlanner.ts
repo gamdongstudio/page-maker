@@ -719,8 +719,15 @@ export function fieldProducts(p: ProjectData): {
     return { field, rep, others: all.filter((x) => x !== rep), matched: true, all };
   }
   const hit = all.filter((x) => shootField(x.name) === field);
-  const rep = picked ?? hit[0] ?? null;
-  return { field, rep, others: hit.filter((x) => x !== rep), matched: !!rep, all };
+  /* 분야 이름만 적힌 것(예: '가족사진')보다 실제 상품(예: '가족사진(의상대여무료)')을 먼저 쓴다 —
+     분야를 바꾸기 전 가격이 그대로 남는 일을 막는다 */
+  const real = hit.filter((x) => x.name.trim() !== field);
+  /* 직접 고른 대표 상품은 지금 분야와 맞을 때만 쓴다 (분야를 바꾸면 다시 정한다) */
+  const keep = picked && hit.includes(picked) ? picked : undefined;
+  const rep = keep ?? real[0] ?? hit[0] ?? null;
+  /* 실제 상품이 있으면 분야 이름만 적힌 자리(예전 분야의 가격이 남아 있을 수 있다)는 목록에서도 뺀다 */
+  const others = hit.filter((x) => x !== rep && !(real.length > 0 && x.name.trim() === field));
+  return { field, rep, others, matched: !!rep, all };
 }
 
 /** 지역은 맨 앞에 한 번만 */

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { fieldProducts } from '@/services/ai/studioPlanner';
+import { formatWon } from '@/utils/format';
 import { useProject } from '@/store/ProjectStore';
 import { useEdition } from '@/store/EditionContext';
 import { checkProject, summarize, type CheckItem } from '@/services/export/checkStore';
@@ -41,6 +43,7 @@ export function StepSave({ getStage, onNew }: {
   const [preview, setPreview] = useState(false);
   const [gallery, setGallery] = useState(false);
   const [more, setMore] = useState(false);
+  const [howStore, setHowStore] = useState(false);
   const [items, setItems] = useState<CheckItem[] | null>(null);
 
   const base = safeName(project.product.name || project.title);
@@ -134,7 +137,12 @@ export function StepSave({ getStage, onNew }: {
         <b className="savehead__title">상세페이지가 완성되었습니다.</b>
         <p>저장할 방법을 선택해주세요.</p>
         <button className="btn btn--line" onClick={() => setPreview(true)}>저장 전 최종 미리보기</button>
+        <button className="btn btn--line" onClick={() => setHowStore((v) => !v)} aria-expanded={howStore}>
+          스마트스토어 등록 방법
+        </button>
       </section>
+
+      {howStore && <StoreHowTo />}
 
       <div className="savebig">
         <button className="savebig__btn" onClick={() => void saveLong()} disabled={!!busy}>
@@ -238,5 +246,38 @@ function SavedGallery({ blobs, onClose }: { blobs: Blob[]; onClose: () => void }
         </div>
       </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+/**
+ * 스마트스토어에 올리는 방법 — 저장한 뒤 어디에 어떻게 넣는지만 알려준다.
+ * 자동 등록은 하지 않는다. 보여주는 값은 지금 고른 촬영분야의 대표 상품 기준이다.
+ */
+function StoreHowTo() {
+  const { project } = useProject();
+  const fp = fieldProducts(project);
+  const title = (project.product.storeTitle || project.product.name || '').trim();
+  const price = fp.rep && fp.rep.main
+    ? formatWon(project.product.salePrice || project.pricing?.eventPrice || project.product.listPrice || project.pricing?.listPrice || '')
+    : (fp.rep?.price ?? '');
+
+  return (
+    <section className="box">
+      <h3 className="box__title">스마트스토어에 등록하기</h3>
+      <ol style={{ margin: '0 0 12px 18px', padding: 0 }}>
+        <li>네이버 스마트스토어센터에서 상품 등록 또는 상품 수정 화면을 엽니다.</li>
+        <li>PageMaker에서 저장한 상세페이지 이미지를 상품 상세설명에 등록합니다.</li>
+        <li>PageMaker에서 정리한 스마트스토어용 제목 · 상품명 · 가격을 확인해 입력합니다.</li>
+        <li>스마트스토어 미리보기에서 이미지와 상품정보를 확인한 뒤 저장합니다.</li>
+      </ol>
+      <p className="field__label">스마트스토어용 제목</p>
+      <p>{title || <span className="field__hint">③ 에서 제목을 골라주세요.</span>}</p>
+      <p className="field__label">대표 상품</p>
+      <p>{fp.rep?.name || <span className="field__hint">{fp.field ? `${fp.field} 관련 상품을 찾지 못했습니다. ③ 가격 안내에서 골라주세요.` : '상품을 넣어주세요.'}</span>}</p>
+      <p className="field__label">가격</p>
+      <p>{price || <span className="field__hint">가격을 넣어주세요.</span>}</p>
+    </section>
   );
 }
