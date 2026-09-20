@@ -12,6 +12,7 @@ import {
   cardFromFields, cardFromProject, cardLabel, hasBusiness, samePlace, type PlaceCard,
 } from '@/services/read/placeIdentity';
 import { keepCurrentWork } from '@/services/storage/works';
+import { applyField, selectedField } from '@/services/ai/studioPlanner';
 import { isEmptyProject } from '@/components/flow/steps';
 import { EMPTY_STUDIO } from '@/types/studio';
 import { applyChange, reviewFields, type FieldChange } from '@/services/read/mergeFields';
@@ -43,6 +44,15 @@ interface PlaceAsk {
   current: PlaceCard;
   incoming: PlaceCard;
   resolve: (c: PlaceChoice) => void;
+}
+
+/**
+ * 고른 촬영분야에 맞게 대표 상품·가격·구성을 맞춘다.
+ * 가져오기와 기존 값 비교가 끝난 뒤에 부른다 — 칩을 직접 누를 때와 같은 함수를 쓴다.
+ */
+function syncField(d: ProjectData): void {
+  const field = selectedField(d);
+  if (field) applyField(d, field);
 }
 
 /** 실제로 작업한 내용이 있는지 (예전에 적어둔 사진관 정보만 자동으로 들어온 빈 작업은 아니다) */
@@ -134,6 +144,8 @@ export function StepPrepare() {
 
     update((d) => {
       fill.forEach((ch) => applyChange(d, ch, 'fill'));
+      /* 가져온 뒤에도 고른 촬영분야와 대표 상품이 어긋나지 않게 맞춘다 (칩을 누른 것과 같은 상태) */
+      syncField(d);
       if (photos.length) {
         const hadMain = d.photos.some((p) => p.kind === 'main');
         d.photos.push(...photos);
@@ -301,7 +313,7 @@ export function StepPrepare() {
 
   const resolve = (ch: FieldChange, how: 'replace' | 'append' | 'skip') => {
     if (how !== 'skip') {
-      update((d) => { applyChange(d, ch, how); }, { label: 'import.resolve', merge: false });
+      update((d) => { applyChange(d, ch, how); syncField(d); }, { label: 'import.resolve', merge: false });
     }
     setConflicts((prev) => prev.filter((c) => c.key !== ch.key));
   };

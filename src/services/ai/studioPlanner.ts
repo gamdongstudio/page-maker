@@ -752,7 +752,11 @@ export function promoteProduct(d: ProjectData, name: string): void {
   const next = all.find((x) => x.name === name);
   if (!next) return;
   const won = wonDigits(next.price);
-  const rest = all.filter((x) => x !== next).map(priceLine).filter(Boolean);
+  /* 분야 이름만 적혀 있던 자리(실제 상품이 아니다)는 보관하지 않는다 — 다른 상품 가격이 그 이름으로 남지 않게 */
+  const field = selectedField(d);
+  const rest = all
+    .filter((x) => x !== next && !(x.main && field && x.name.trim() === field))
+    .map(priceLine).filter(Boolean);
   d.shoot = { ...(d.shoot ?? EMPTY_BRIEF), productName: next.name, pickedProduct: '' };
   d.product.listPrice = won;
   d.product.salePrice = '';
