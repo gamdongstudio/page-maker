@@ -181,7 +181,7 @@ export function SectionTools({ menu }: { menu: MenuItem }) {
 
       {/* 5. 자동 추천 다시 받기 — 작은 보조 단추. 후보를 보고 고를 때만 바꾼다 */}
       <div>
-        <button className="linkbtn" style={{ fontSize: 12, opacity: 0.75 }} onClick={askRedo}>자동 추천 다시 받기</button>
+        <button className="linkbtn" style={{ fontSize: 12, opacity: 0.75 }} onClick={askRedo}>자동 제작 다시 받기</button>
         {redo && (
           <div className="box box--ask" style={{ marginTop: 6 }}>
             <p className="field__hint">이 섹션만 아래 추천으로 바꿉니다. 다른 섹션은 그대로입니다.</p>

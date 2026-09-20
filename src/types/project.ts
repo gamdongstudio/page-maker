@@ -89,7 +89,7 @@ export const PHOTO_FIT_LABEL: Record<PhotoFit, string> = {
 export type HeroShape = 'auto' | 'landscape' | 'square' | 'portrait';
 
 export const HERO_SHAPE_LABEL: Record<HeroShape, string> = {
-  auto: '자동 추천',
+  auto: '자동',
   landscape: '가로형',
   square: '정사각형',
   portrait: '세로형',

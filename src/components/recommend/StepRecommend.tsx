@@ -58,7 +58,7 @@ export function StepRecommend({ onNext }: { onNext: () => void }) {
     setMsg('');
     /* 누르자마자 반응한다 — 보관은 그다음 */
     setPhase(0);
-    await saveSnapshot(latest.current, '자동 추천 전');
+    await saveSnapshot(latest.current, '자동 제작 전');
     const snaps = await listSnapshots();
     setSnapAt(snaps[0]?.at ?? null);
     await wait(250);
@@ -109,7 +109,7 @@ export function StepRecommend({ onNext }: { onNext: () => void }) {
     replace(data);
     setPhase(-1);
     setSnapAt(null);
-    setMsg('자동 추천 전으로 되돌렸습니다.');
+    setMsg('자동 제작 전으로 되돌렸습니다.');
   };
 
   const pickTitle = (t: string) => update((d) => {
@@ -136,7 +136,7 @@ export function StepRecommend({ onNext }: { onNext: () => void }) {
         </ul>
 
         <button className="btn btn--make" onClick={start} disabled={running}>
-          {made ? '자동 추천 다시 만들기' : '자동 추천 만들기'}
+          {made ? '자동 제작 다시 하기' : '자동 제작 시작'}
         </button>
 
         {phase >= 0 && (

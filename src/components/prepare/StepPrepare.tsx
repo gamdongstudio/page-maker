@@ -12,7 +12,7 @@ import {
   cardFromFields, cardFromProject, cardLabel, hasBusiness, samePlace, type PlaceCard,
 } from '@/services/read/placeIdentity';
 import { keepCurrentWork } from '@/services/storage/works';
-import { applyField, selectedField } from '@/services/ai/studioPlanner';
+import { applyField, FIELD_NAMES, selectedField, shootField } from '@/services/ai/studioPlanner';
 import { isEmptyProject } from '@/components/flow/steps';
 import { EMPTY_STUDIO } from '@/types/studio';
 import { applyChange, reviewFields, type FieldChange } from '@/services/read/mergeFields';
@@ -51,7 +51,17 @@ interface PlaceAsk {
  * 가져오기와 기존 값 비교가 끝난 뒤에 부른다 — 칩을 직접 누를 때와 같은 함수를 쓴다.
  */
 function syncField(d: ProjectData): void {
-  const field = selectedField(d);
+  let field = selectedField(d);
+  /*
+   * 아직 고른 촬영분야가 없으면, 가져온 대표 상품 이름으로 **분명히 알 수 있을 때만** 처음 한 번 골라 둔다.
+   * (예: '(평일)가족사진: 액자,헤메,의상포함' → 가족사진)
+   * shootField 는 아는 낱말이 없으면 상품 이름을 그대로 돌려주므로, 아는 분야 목록에 있을 때만 쓴다.
+   * 사용자가 칩을 누르면 shoot.field 가 채워지고, 그 뒤로는 selectedField 가 먼저 잡혀 여기서 덮어쓰지 않는다.
+   */
+  if (!field) {
+    const guess = shootField(d.shoot?.productName ?? '');
+    if (FIELD_NAMES.includes(guess)) field = guess;
+  }
   if (field) applyField(d, field);
 }
 
@@ -473,7 +483,26 @@ export function StepPrepare() {
             <p className="field__hint">찾은 내용은 아래 칸에 들어갑니다. 이미 적어두신 내용은 바꾸기 전에 여쭤봅니다.</p>
           </div>
         )}
-        <p className="srcdirect">또는 아래 내용을 직접 입력하세요.</p>
+      </section>
+
+      {/* ---------------- 어디부터 하면 되는지 — 셋 중 하나만 하면 된다 ---------------- */}
+      <section className="box prepguide">
+        <h3 className="box__title">가장 쉬운 방법부터 해보세요.</h3>
+        <ol className="prepguide__list">
+          <li>
+            <span className="prepguide__no" aria-hidden>1</span>
+            <span>주소가 있으면 <b>주소만 넣고 [글과 사진 가져오기]</b></span>
+          </li>
+          <li>
+            <span className="prepguide__no" aria-hidden>2</span>
+            <span>주소에서 가져오기 어렵다면 <b>[내용 붙여넣기]</b></span>
+          </li>
+          <li>
+            <span className="prepguide__no" aria-hidden>3</span>
+            <span>자료가 없다면 <b>아래에서 알고 있는 내용만 직접 입력</b></span>
+          </li>
+        </ol>
+        <p className="prepguide__note">모든 칸을 다 작성하지 않아도 됩니다.</p>
       </section>
 
       {/* ---------------- 가져온 결과 ---------------- */}

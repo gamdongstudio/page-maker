@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { ShootProduct } from '@/types/studio';
 import { makeShootProduct, restoreDefaults } from '@/services/storage/studio';
+import { Icon } from '@/components/ui/Icon';
 
 /**
  * 촬영상품 고르기 + 관리.
@@ -56,16 +57,27 @@ export function ShootProducts({ list, onChange, picked, onPick }: Props) {
   return (
     <div className="shoot">
       <div className="shoot__chips">
-        {visible.map((p) => (
-          <button
-            key={p.id}
-            className={'chip' + (picked === p.name ? ' is-on' : '')}
-            onClick={() => onPick(p.name)}
-          >
-            {p.name}
-          </button>
-        ))}
+        {visible.map((p) => {
+          const on = picked === p.name;
+          return (
+            <button
+              key={p.id}
+              className={'chip' + (on ? ' is-on' : '')}
+              onClick={() => onPick(p.name)}
+              aria-pressed={on}
+            >
+              {/* 색만으로 고른 것을 알리지 않는다 — 체크 표시를 같이 보여준다 */}
+              {on && <Icon name="check" size={13} />}
+              {p.name}
+            </button>
+          );
+        })}
       </div>
+
+      {/* 위 목록에서 실제로 고른 것이 있을 때만 알린다 (고른 칩이 없는데 이름만 뜨면 헷갈린다) */}
+      {visible.some((p) => p.name === picked) && (
+        <p className="shoot__now">지금 편집 중 · <b>{picked}</b></p>
+      )}
 
       <div className="shoot__addrow">
         <input

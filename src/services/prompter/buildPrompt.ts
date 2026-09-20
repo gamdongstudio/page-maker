@@ -55,7 +55,7 @@ export function describeCurrent(p: ProjectData, include: IncludeOpts = DEFAULT_I
     : '';
   const placed = visible.filter((m) => m.photoIds.length)
     .map((m) => `${m.title} ${m.photoIds.length}장`).join(', ');
-  const heroWord = d.heroShape === 'auto' ? '자동 추천'
+  const heroWord = d.heroShape === 'auto' ? '자동'
     : d.heroShape === 'landscape' ? '가로형'
       : d.heroShape === 'square' ? '정사각형' : '세로형';
 

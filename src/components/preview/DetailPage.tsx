@@ -369,10 +369,16 @@ function MenuBody({ menu, project, narrow, boxWidth, edit }: {
                 onClick={edit ? (e) => { e.stopPropagation(); edit.onJump('product'); } : undefined}
                 title={edit ? '눌러서 전화·예약 정보를 고칩니다' : undefined}
                 style={{
-                  display: 'inline-block',
+                  /* 채운 단추와 테두리 단추가 같은 상자 기준을 쓰게 한다.
+                     (테두리가 없으면 그만큼 낮고 좁아져 같은 줄에서 글자가 어긋났다 → 투명 테두리로 맞춤)
+                     줄이 넘어가 상자가 늘어나도 글자는 늘 가운데에 온다. */
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxSizing: 'border-box',
                   background: i === 0 ? d.primary : 'transparent',
                   color: i === 0 ? pickReadable(d.primary) : d.primary,
-                  border: i === 0 ? 'none' : `1.5px solid ${d.primary}`,
+                  border: `1.5px solid ${i === 0 ? 'transparent' : d.primary}`,
                   padding: '15px 30px',
                   borderRadius: d.buttonStyle === 'pill' ? 999 : d.buttonStyle === 'round' ? 10 : 0,
                   fontWeight: 700,
@@ -383,7 +389,7 @@ function MenuBody({ menu, project, narrow, boxWidth, edit }: {
               </span>
             ))}
           </div>
-          {p.contact && !menu.body.includes(p.contact.split(' ')[0]) && (
+          {p.contact && !samePhoneAsCta(project) && !menu.body.includes(p.contact.split(' ')[0]) && (
             <p style={{ ...bodyStyle, marginTop: 14, fontSize: d.bodySize - 2, opacity: 0.8 }}>{p.contact}</p>
           )}
         </div>
@@ -557,6 +563,23 @@ function SimpleSection({ menu, fallback, titleStyle, bodyStyle, edit }: {
       )}
     </div>
   );
+}
+
+/**
+ * 예약·문의 아래 작은 안내 글이, 전화 CTA 단추와 **같은 번호만** 반복하는지.
+ *
+ * 같은 화면에 같은 번호가 두 번 보이는 것만 막는다. 전화번호 자체는 지우지 않는다.
+ *  - 전화 CTA 가 없으면(번호를 적지 않았으면) 안내 글은 그대로 둔다
+ *  - 안내 글에 다른 내용이 함께 있으면(예: '전화 02-000-0000 · 네이버 예약') 그대로 둔다
+ */
+function samePhoneAsCta(project: ProjectData): boolean {
+  const text = (project.product.contact ?? '').trim();
+  const phone = (project.studio?.phone ?? '').trim();
+  if (!text || !phone) return false;
+  const digits = (s: string) => s.replace(/\D/g, '');
+  if (digits(text) !== digits(phone)) return false;                                  // 다른 번호거나 번호가 더 있음
+  if (!ctaButtons(project).some((b) => b.label === `전화 ${phone}`)) return false;    // 전화 CTA 가 없음
+  return !/[가-힣A-Za-z]/.test(text.replace(/전화|연락처|tel/gi, ''));                 // '전화' 말고 다른 글이 없음
 }
 
 /** 예약·문의 버튼 — 있는 정보로만 만든다. 적지 않은 링크는 버튼도 만들지 않는다 */

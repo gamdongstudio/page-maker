@@ -244,7 +244,7 @@ function HeroShapePick() {
       </div>
       <p className="field__hint">
         {now === 'auto' && advice
-          ? '지금 대표사진은 ' + advice + '이 잘 어울려요. 자동 추천이 알아서 맞춰 줍니다.'
+          ? '지금 대표사진은 ' + advice + '이 잘 어울려요. 자동 제작이 알아서 맞춰 줍니다.'
           : '맨 위 대표사진이 이 모양으로 보입니다. 잘리는 위치는 사진마다 조정할 수 있어요.'}
       </p>
     </div>
