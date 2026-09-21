@@ -37,7 +37,8 @@ import { ContentFields } from './ContentFields';
 
 type RowState = { phase: string; error?: string; offline?: boolean };
 
-const STORE_MANUAL = '스마트스토어는 자동으로 가져오지 못할 수 있습니다. 상품 내용은 붙여넣고 사진을 직접 추가해서 계속 만들 수 있습니다.';
+const INSTA_MANUAL = '인스타그램은 자동으로 가져오지 못할 수 있습니다. 내용은 붙여넣고 사진을 직접 추가해서 계속 만들 수 있습니다.';
+const STORE_MANUAL ='스마트스토어는 자동으로 가져오지 못할 수 있습니다. 상품 내용은 붙여넣고 사진을 직접 추가해서 계속 만들 수 있습니다.';
 
 /** 업체 확인 뒤 고른 것 — add: 지금 작업에 추가 · new: 새 작업 · fresh: 빈 작업의 옛 사진관 정보만 비우고 넣기 · cancel: 아무것도 넣지 않음 */
 type PlaceChoice = 'add' | 'new' | 'fresh' | 'cancel';
@@ -224,7 +225,7 @@ export function StepPrepare() {
     /* 연결부터 확인 — 안 돼 있으면 이때 처음으로 안내한다.
        웹으로 읽을 수 있는 주소(스마트플레이스·블로그·홈페이지)만 있으면 확인하지 않는다 (웹이 안 되면 그때 안내) */
     setBusy(true);
-    if (targets.some((r) => !webReadable(r.url) && guessSource(r.url) !== 'naver-store')) {
+    if (targets.some((r) => !webReadable(r.url) && !['naver-store', 'instagram'].includes(guessSource(r.url)))) {
       const st = await toolsStatus();
       setTools(st);
       if (st.state !== 'connected') {
@@ -242,6 +243,13 @@ export function StepPrepare() {
       /* 스마트스토어는 자동으로 읽지 않는다 (네이버가 막는다) — 바로 붙여넣기·사진 추가로 이어간다 */
       if (guessSource(checked.url) === 'naver-store') {
         setRow(row.id, { phase: '', error: STORE_MANUAL });
+        openPaste();
+        continue;
+      }
+
+      /* 인스타그램도 로그인해야 보여서 자동으로 읽지 않는다 — 바로 붙여넣기·사진 추가로 이어간다 */
+      if (guessSource(checked.url) === 'instagram') {
+        setRow(row.id, { phase: '', error: INSTA_MANUAL });
         openPaste();
         continue;
       }

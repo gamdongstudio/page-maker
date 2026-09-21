@@ -99,7 +99,7 @@ export const SOURCE_READINESS: Record<SourceType, { level: 'good' | 'partial'; n
   },
   instagram: {
     level: 'partial',
-    note: '인스타그램은 로그인해야 볼 수 있는 글이 많아 지금은 대부분 읽지 못합니다. 사진은 직접 올려주세요.',
+    note: '인스타그램은 자동으로 가져오지 못할 수 있습니다. 내용은 붙여넣고 사진을 직접 추가해서 계속 만들 수 있습니다.',
   },
   website: { level: 'good', note: '글과 사진을 가져옵니다.' },
 };
