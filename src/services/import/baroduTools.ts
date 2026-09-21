@@ -316,10 +316,22 @@ export function onPublicAddress(): boolean {
  * PM Connect 없이 — 같은 사이트의 수집 API (/api/collect-smartplace, 스마트플레이스만).
  * API 가 없는 곳(개발 서버 등)이거나 닿지 못하면 null — 그때는 PM Connect 로 넘어간다.
  */
+const WEB_API: Partial<Record<SourceType, string>> = {
+  'naver-place': '/api/collect-smartplace',
+  'naver-blog': '/api/collect-page',
+  website: '/api/collect-page',
+};
+
+/** PM Connect 없이 웹으로 읽을 수 있는 주소인지 (스마트플레이스 · 네이버 블로그 · 일반 홈페이지) */
+export function webReadable(url: string): boolean {
+  return !!WEB_API[guessSource(url)];
+}
+
 async function collectFromWeb(url: string): Promise<ImportResult | ImportFail | null> {
-  if (guessSource(url) !== 'naver-place') return null;
+  const api = WEB_API[guessSource(url)];
+  if (!api) return null;
   try {
-    const res = await fetch('/api/collect-smartplace', {
+    const res = await fetch(api, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url }),

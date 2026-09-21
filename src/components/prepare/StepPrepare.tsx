@@ -3,7 +3,7 @@ import { useProject } from '@/store/ProjectStore';
 import type { Photo, ProjectData, SourceLink } from '@/types/project';
 import { makeMenu, uid } from '@/types/defaults';
 import {
-  checkUrl, collectFromUrl, forgetTools, guessSource, normalizePlaceUrl, photoSrc, SOURCE_LABEL, SOURCE_READINESS, toolsStatus,
+  checkUrl, collectFromUrl, forgetTools, guessSource, normalizePlaceUrl, photoSrc, SOURCE_LABEL, SOURCE_READINESS, toolsStatus, webReadable,
   type ToolsStatus,
 } from '@/services/import/baroduTools';
 import { downloadImages, photoSourceOf } from '@/services/import/downloadImages';
@@ -205,9 +205,9 @@ export function StepPrepare() {
     }
 
     /* 연결부터 확인 — 안 돼 있으면 이때 처음으로 안내한다.
-       스마트플레이스 주소만 있으면 PM Connect 없이 웹으로 읽으므로 확인하지 않는다 (웹이 안 되면 그때 안내) */
+       웹으로 읽을 수 있는 주소(스마트플레이스·블로그·홈페이지)만 있으면 확인하지 않는다 (웹이 안 되면 그때 안내) */
     setBusy(true);
-    if (targets.some((r) => guessSource(r.url) !== 'naver-place')) {
+    if (targets.some((r) => !webReadable(r.url))) {
       const st = await toolsStatus();
       setTools(st);
       if (st.state !== 'connected') {
