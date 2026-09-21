@@ -22,6 +22,7 @@ import { reviewPhotos } from '@/utils/photoCheck';
 import { setMainPhoto } from '@/utils/photoOps';
 import { PhotoLibrary } from '@/components/media/PhotoLibrary';
 import { ConnectHelp } from './ConnectHelp';
+import { PM_CONNECT_ENABLED } from '@/config/baroduTools';
 import { ContentFields } from './ContentFields';
 
 /**
@@ -506,7 +507,7 @@ export function StepPrepare() {
           {tools?.state === 'connected' && <span className="srcready">✓ 네이버 가져오기 준비됨</span>}
         </div>
 
-        {needConnect && tools && (
+        {PM_CONNECT_ENABLED && needConnect && tools && (
           <ConnectHelp status={tools} checking={checking} onRecheck={() => void recheck()} onPaste={openPaste} />
         )}
 

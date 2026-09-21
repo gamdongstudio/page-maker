@@ -9,6 +9,7 @@ import { buildZip, plannedNames, zipFileName } from '@/services/smartstore/pack'
 import { copyBlocks, fullText } from '@/services/smartstore/text';
 import { autoFill, canAutoFill, type FillMode, type PublishStep } from '@/services/smartstore/publish';
 import { onPublicAddress } from '@/services/import/baroduTools';
+import { PM_CONNECT_ENABLED } from '@/config/baroduTools';
 
 /**
  * 네이버 스마트스토어에 올리기.
@@ -48,7 +49,8 @@ export function SmartStore({ getStage }: { getStage: () => HTMLElement | null })
     setToolsWhy(r.ok ? '' : r.reason);
   };
 
-  useEffect(() => { void checkTools(); }, []);
+  /* PM Connect 를 쓰지 않는 기본 흐름에서는 연결 확인도 하지 않는다 */
+  useEffect(() => { if (PM_CONNECT_ENABLED) void checkTools(); }, []);
 
   const say = (m: string) => {
     setMsg(m);
@@ -190,8 +192,8 @@ export function SmartStore({ getStage }: { getStage: () => HTMLElement | null })
         ))}
       </ul>
 
-      {/* 1) 자동입력 */}
-      <div className="ss__way">
+      {/* 1) 자동입력 — PM Connect 가 필요하므로 기본 흐름에서는 숨긴다 (코드는 보존) */}
+      {PM_CONNECT_ENABLED && <div className="ss__way">
         <button
           className="btn btn--main wide savepick"
           onClick={() => void doAuto('empty-only')}
@@ -211,7 +213,7 @@ export function SmartStore({ getStage }: { getStage: () => HTMLElement | null })
         <p className="field__hint">
           마지막 <b>등록</b> 단추는 누르지 않습니다. 내용을 확인하신 뒤 직접 눌러주세요.
         </p>
-      </div>
+      </div>}
 
       {/* 자동입력 진행 상태 */}
       {steps && steps.length > 0 && (
@@ -248,7 +250,7 @@ export function SmartStore({ getStage }: { getStage: () => HTMLElement | null })
       <div className="ss__way">
         <button className="btn btn--line wide savepick" onClick={() => void doZip()} disabled={!!busy}>
           <b>스마트스토어 등록자료 받기</b>
-          <em>사진과 복사용 문구를 ZIP 으로 — PM Connect 없이도 됩니다</em>
+          <em>사진과 복사용 문구를 ZIP 으로 받습니다</em>
         </button>
         <p className="field__hint">
           01_대표사진 · 02_추가사진 · 03_상세페이지 · 04_입력문구 순서로 들어 있습니다.

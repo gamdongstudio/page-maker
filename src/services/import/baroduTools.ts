@@ -16,7 +16,7 @@
  * 그래서 이 파일은 **실패를 조용히 삼키지 않고** 어떤 상태인지 그대로 돌려준다.
  */
 
-import { BARODU_TOOLS } from '@/config/baroduTools';
+import { BARODU_TOOLS, PM_CONNECT_ENABLED } from '@/config/baroduTools';
 
 export type SourceType =
   | 'naver-blog' | 'naver-place' | 'naver-store' | 'instagram' | 'website';
@@ -174,6 +174,8 @@ async function ping(port: number): Promise<Found | null> {
 
 /** BARODU Tools 를 찾는다. 기억해 둔 자리를 먼저 본다. */
 async function find(): Promise<Found | null> {
+  /* PageMaker 기본 흐름은 PM Connect 없이 동작한다 — 꺼져 있으면 이 컴퓨터의 자리를 두드리지 않는다 */
+  if (!PM_CONNECT_ENABLED) return null;
   if (cached && await ping(cached.port)) return cached;
 
   const order: number[] = [...BARODU_TOOLS.ports];

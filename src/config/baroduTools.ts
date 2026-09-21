@@ -12,6 +12,13 @@
  * ⚠ 자리 번호(포트)를 다른 파일에 적지 마세요. 찾는 자리는 여기 한 곳에서만 관리합니다.
  */
 
+/**
+ * PM Connect(BARODU Tools) 사용 여부.
+ * PageMaker 기본 흐름(주소 가져오기·제작·저장)은 PM Connect 없이 웹으로 동작하므로 꺼 둔다.
+ * 꺼져 있으면 연결 확인·자동 실행·설치 안내·스마트스토어 자동입력 버튼이 모두 나오지 않는다 (코드는 보존).
+ */
+export const PM_CONNECT_ENABLED = false;
+
 export const BARODU_TOOLS = {
   /** 이 이름으로 답해야 진짜 BARODU Tools 로 본다 */
   productName: 'BARODU Tools',
