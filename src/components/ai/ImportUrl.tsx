@@ -5,7 +5,7 @@ import {
   SOURCE_LABEL,
   SOURCE_READINESS, type ImportResult, type ToolsStatus,
 } from '@/services/import/baroduTools';
-import { BARODU_TOOLS } from '@/config/baroduTools';
+import { BARODU_TOOLS, PM_CONNECT_ENABLED } from '@/config/baroduTools';
 import { parseStudioText, type ReadField } from '@/services/read/parseInfo';
 import { applyReadFields } from '@/services/read/applyFields';
 import { readPhotoFiles } from '@/utils/image';
@@ -200,7 +200,7 @@ export function ImportUrl({ onPaste }: { onPaste: (text: string) => void }) {
       {phase && <p className="note">{phase}</p>}
 
       {/* BARODU Tools 가 없을 때 — 화면을 막지 않고 이 자리에서만 알린다 */}
-      {needTools && !busy && (
+      {PM_CONNECT_ENABLED && needTools && !busy && (
         <div className="note note--warn">
           {tools.state === 'stopped' ? (
             <>
