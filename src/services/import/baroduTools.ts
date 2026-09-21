@@ -95,7 +95,7 @@ export const SOURCE_READINESS: Record<SourceType, { level: 'good' | 'partial'; n
   'naver-place': { level: 'good', note: '업체정보를 가져옵니다. 화면이 자주 바뀌어 못 읽을 때도 있습니다.' },
   'naver-store': {
     level: 'partial',
-    note: '스마트스토어 전용으로 읽는 방법은 아직 준비 중입니다. 지금은 일반 방식으로 읽어 일부만 들어올 수 있어요.',
+    note: '스마트스토어는 자동으로 가져오지 못할 수 있습니다. 상품 내용은 붙여넣고 사진을 직접 추가해서 계속 만들 수 있습니다.',
   },
   instagram: {
     level: 'partial',
