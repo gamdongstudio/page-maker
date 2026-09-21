@@ -355,13 +355,30 @@ export async function collectFromUrl(raw: string): Promise<ImportResult | Import
   const checked = checkUrl(raw);
   if (!checked.ok) return { ok: false, reason: checked.reason };
 
-  /* 스마트플레이스는 PM Connect 없이 이 사이트의 수집 API 로 먼저 읽는다. 안 되면 PM Connect 로 넘어간다 */
-  const web = await collectFromWeb(checked.url);
-  if (web?.ok) return web;
+  /*
+   * 스마트플레이스·블로그·홈페이지는 PM Connect 없이 이 사이트의 수집 API 로 읽는다.
+   * 웹으로 못 읽으면 PM Connect 가 **이미 켜져 있을 때만** 조용히 한 번 더 해본다 — 설치·실행을 요구하지 않는다.
+   */
+  if (webReadable(checked.url)) {
+    const web = await collectFromWeb(checked.url);
+    if (web?.ok) return web;
+    if (await find()) {
+      const viaTools = await collectWithTools(checked.url);
+      if (viaTools.ok) return viaTools;
+    }
+    return { ok: false, reason: WEB_FAIL };
+  }
+  return collectWithTools(checked.url);
+}
 
+/** 웹으로 못 읽었을 때 안내 */
+export const WEB_FAIL = '자동으로 가져오지 못했습니다. 직접 입력해서 계속 만들 수 있습니다.';
+
+/** PM Connect 로 읽기 (스마트스토어·인스타그램 등 아직 웹으로 못 읽는 주소, 그리고 웹이 실패했을 때의 보조) */
+async function collectWithTools(url: string): Promise<ImportResult | ImportFail> {
+  const checked = { url };
   const found = await find();
   if (!found) {
-    if (web) return web;
     return {
       ok: false,
       offline: true,
