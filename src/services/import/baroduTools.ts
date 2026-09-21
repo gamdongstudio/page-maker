@@ -313,6 +313,28 @@ export function onPublicAddress(): boolean {
 }
 
 /**
+ * PM Connect 없이 — 같은 사이트의 수집 API (/api/collect-smartplace, 스마트플레이스만).
+ * API 가 없는 곳(개발 서버 등)이거나 닿지 못하면 null — 그때는 PM Connect 로 넘어간다.
+ */
+async function collectFromWeb(url: string): Promise<ImportResult | ImportFail | null> {
+  if (guessSource(url) !== 'naver-place') return null;
+  try {
+    const res = await fetch('/api/collect-smartplace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!(res.headers.get('content-type') ?? '').includes('application/json')) return null;
+    const data = await res.json() as ImportResult | ImportFail;
+    if (data?.ok === true && typeof data.text === 'string') return data;
+    if (data?.ok === false && typeof data.reason === 'string') return data;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 주소 하나를 읽어온다.
  *
  * 실패해도 **지금 작업은 절대 건드리지 않는다.** 이유만 돌려준다.
@@ -321,8 +343,13 @@ export async function collectFromUrl(raw: string): Promise<ImportResult | Import
   const checked = checkUrl(raw);
   if (!checked.ok) return { ok: false, reason: checked.reason };
 
+  /* 스마트플레이스는 PM Connect 없이 이 사이트의 수집 API 로 먼저 읽는다. 안 되면 PM Connect 로 넘어간다 */
+  const web = await collectFromWeb(checked.url);
+  if (web?.ok) return web;
+
   const found = await find();
   if (!found) {
+    if (web) return web;
     return {
       ok: false,
       offline: true,

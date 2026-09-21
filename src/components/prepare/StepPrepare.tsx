@@ -204,14 +204,17 @@ export function StepPrepare() {
       return;
     }
 
-    /* 연결부터 확인 — 안 돼 있으면 이때 처음으로 안내한다 */
+    /* 연결부터 확인 — 안 돼 있으면 이때 처음으로 안내한다.
+       스마트플레이스 주소만 있으면 PM Connect 없이 웹으로 읽으므로 확인하지 않는다 (웹이 안 되면 그때 안내) */
     setBusy(true);
-    const st = await toolsStatus();
-    setTools(st);
-    if (st.state !== 'connected') {
-      setNeedConnect(true);
-      setBusy(false);
-      return;
+    if (targets.some((r) => guessSource(r.url) !== 'naver-place')) {
+      const st = await toolsStatus();
+      setTools(st);
+      if (st.state !== 'connected') {
+        setNeedConnect(true);
+        setBusy(false);
+        return;
+      }
     }
     setNeedConnect(false);
 
