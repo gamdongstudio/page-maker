@@ -1,5 +1,5 @@
 import type {
-  Perk, ShootConcept, StudioEvent, StudioInfo, StudioPricing,
+  Perk, Review, ShootConcept, StudioEvent, StudioInfo, StudioPricing,
 } from './studio';
 import type { FontKey } from '@/config/fonts';
 
@@ -322,6 +322,8 @@ export interface ProjectData {
   event?: StudioEvent;
   /** 특별한 혜택 */
   perks?: Perk[];
+  /** 후기 (없을 수 있다 — 예전 작업과 호환) */
+  reviews?: Review[];
   /** 촬영 콘셉트 */
   concepts?: ShootConcept[];
   /** 가격표·상품 비교에 쓰는 촬영상품 목록 (없으면 예전처럼 동작한다) */
@@ -352,6 +354,8 @@ export interface SourceLink {
 export interface FlowState {
   /** 자동 추천을 마지막으로 만든 때 */
   recommendedAt?: number;
+  /** 예약·문의를 맨 아래로 한 번 내렸는지 (그 뒤로는 사장님이 정한 순서를 그대로 둔다) */
+  ctaMoved?: boolean;
   /** 마지막으로 이미지를 저장한 때 */
   savedAt?: number;
 }

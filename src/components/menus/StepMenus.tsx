@@ -3,6 +3,7 @@ import { useProject } from '@/store/ProjectStore';
 import { LITE_MENU_KINDS, MENU_CATALOG, makeMenu, uid } from '@/types/defaults';
 import { useEdition } from '@/store/EditionContext';
 import type { MenuKind } from '@/types/project';
+import { isDropped } from '@/components/preview/sectionContent';
 import { SectionTools } from './SectionTools';
 import { templateLabel } from '@/components/preview/templates';
 import { hasContent } from '@/components/preview/sectionContent';
@@ -108,7 +109,7 @@ export function StepMenus({ focusMenuId, onFocused, onSelect }: {
       )}
 
       <div className="menus">
-        {project.menus.map((m, i) => {
+        {project.menus.filter((m) => !isDropped(m)).map((m, i) => {
           const open = editId === m.id;
           return (
             <div

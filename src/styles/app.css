@@ -92,7 +92,7 @@ button,input,textarea,select{font-family:inherit}
 .split{flex:1;display:flex;min-height:0;overflow:hidden}
 .split__left{min-width:0;display:flex;flex-direction:column;min-height:0}
 .split__right{
-  flex:1;min-width:0;background:var(--panel);border-left:1px solid var(--line);
+  flex:1;min-width:0;background:var(--panel);border-left:1px solid var(--line);scrollbar-gutter:stable;
   overflow-y:auto;overflow-x:hidden;
 }
 .split__handle{
@@ -120,7 +120,7 @@ button,input,textarea,select{font-family:inherit}
 }
 .seg__btn.is-on{background:#fff;color:var(--brand-dark);box-shadow:0 1px 3px rgba(16,24,40,.12)}
 
-.preview__scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px;min-height:0}
+.preview__scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px;min-height:0;scrollbar-gutter:stable}
 .preview__stage{display:flex;justify-content:center}
 .preview__page{box-shadow:0 2px 18px rgba(20,28,45,.10);background:#fff}
 
@@ -1404,6 +1404,72 @@ button,input,textarea,select{font-family:inherit}
 }
 .prepguide__note{margin:2px 0 0;font-size:13.5px;font-weight:600;color:var(--ink-2)}
 
+/* --- ④ 저장 머리 — 두 단추를 한 줄에 --- */
+.savehead__acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.savehead__acts .btn{width:100%}
+@media (max-width:520px){.savehead__acts{grid-template-columns:1fr}}
+
+/* 추천 상품명 — 글자가 주인공이라 크게 */
+.storetitle{
+  margin:0;padding:11px 13px;border:1px solid var(--line-2);border-radius:9px;background:#fff;
+  font-size:15px;font-weight:700;color:var(--ink);line-height:1.55;word-break:keep-all;
+}
+
+/* --- 상품 이미지 만들기 (대표 / 추가 이미지) --- */
+.mainimg__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mainimg__pick{
+  position:relative;padding:0;border:2px solid var(--line);border-radius:10px;
+  background:#fff;overflow:hidden;cursor:pointer;aspect-ratio:1/1;
+}
+.mainimg__pick img{width:100%;height:100%;object-fit:cover;display:block}
+.mainimg__pick:hover{border-color:var(--brand)}
+/* 대표는 한눈에 — 추가보다 조금 더 진하게 */
+.mainimg__pick.is-main{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.mainimg__pick.is-extra{border-color:var(--line-2)}
+.mainimg__badge{
+  position:absolute;left:5px;top:5px;padding:3px 8px;border-radius:999px;
+  font-size:11.5px;font-weight:800;line-height:1.3;color:#fff;white-space:nowrap;
+  box-shadow:0 1px 4px rgba(0,0,0,.25);
+}
+.mainimg__badge--main{background:var(--brand)}
+.mainimg__badge--extra{background:rgba(27,31,39,.82)}
+
+/* 사진을 누르면 나오는 간단한 선택 */
+.mainimg__ask{
+  border:1px solid #d9e3ff;background:#f6f9ff;border-radius:11px;padding:11px;
+  display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--ink);
+}
+.mainimg__askacts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.mainimg__askacts .btn{width:100%}
+
+.mainimg__edit{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:11px;padding:11px;background:#fafbfc}
+.mainimg__edithead{display:flex;align-items:center;justify-content:space-between}
+.mainimg__size{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mainimg__add{
+  aspect-ratio:1/1;border:1px dashed var(--line-2);border-radius:10px;background:#fafbfc;
+  color:var(--ink-2);font-size:12.5px;font-weight:600;cursor:pointer;
+  word-break:keep-all;line-height:1.4;padding:4px;
+}
+.mainimg__add:hover{border-color:var(--brand);color:var(--brand)}
+.mainimg__stage{
+  position:relative;overflow:hidden;border:1px solid var(--line-2);border-radius:10px;
+  background:#fff;margin:2px auto 0;touch-action:none;cursor:grab;
+}
+.mainimg__stage:active{cursor:grabbing}
+/* 오른쪽 패널이 좁아 4칸은 글자가 겹친다 — 2×2 로 둔다 */
+.mainimg__tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.mainimg__tools .btn{width:100%;padding:10px 6px;font-size:13px}
+.mainimg__tools .btn.is-on{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+@media (max-width:520px){
+  .mainimg__grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .mainimg__tools{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* 스마트스토어 등록 글 단추 — 두 단추가 같은 폭·높이를 쓴다 */
+.storetext{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.storetext .btn{width:100%}
+@media (max-width:520px){.storetext{grid-template-columns:1fr}}
+
 /* --- 카드 --- */
 .box{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
 .box__title{margin:0;font-size:15px;font-weight:700;color:var(--ink)}
@@ -1663,3 +1729,25 @@ button,input,textarea,select{font-family:inherit}
 /* ---- 머리글 공식 가로 로고 ---- */
 .top__logo{height:32px;width:auto}
 @media (max-width:900px){ .top__logo{height:26px} }
+
+/* --- 후기 고르기 (③ 구성 → 후기) --- */
+.revcard{
+  border:1px solid var(--line);border-radius:11px;background:#fff;
+  padding:10px;display:flex;flex-direction:column;gap:7px;
+}
+.revcard.is-on{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.revcard__head{display:flex;align-items:center;gap:8px}
+.revcard__use{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.revcard__head .shoot__grip{margin-left:auto}
+.revcard__who{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.revcard__pics{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.revcard__pic{
+  flex:0 0 auto;width:54px;height:54px;padding:0;border:2px solid var(--line);
+  border-radius:8px;overflow:hidden;background:#fff;cursor:pointer;
+}
+.revcard__pic img{width:100%;height:100%;object-fit:cover;display:block}
+.revcard__pic.is-on{border-color:var(--brand)}
+.revcard__pic--none{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.revcard__now{display:flex;align-items:center;gap:6px}
+.revcard__now img{width:54px;height:54px;object-fit:cover;border-radius:8px;display:block;border:1px solid var(--line)}
+.revcard__picacts{display:flex;gap:6px;flex-wrap:wrap}

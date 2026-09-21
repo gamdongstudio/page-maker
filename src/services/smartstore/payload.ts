@@ -104,8 +104,12 @@ function reservationOf(p: ProjectData): string {
 function descriptionOf(p: ProjectData): string {
   const out: string[] = [];
   if (p.product.tagline) out.push(p.product.tagline);
-  const intro = p.menus.find((m) => !m.hidden && m.kind === 'intro');
-  const body = intro?.body || p.product.description;
+  /*
+   * 숨긴 영역의 글은 상세페이지에 나오지 않으므로 등록 글에도 넣지 않는다.
+   * (예전에는 소개 영역을 숨겨도 상품 설명이 그대로 따라 들어갔다)
+   */
+  const intro = p.menus.find((m) => m.kind === 'intro');
+  const body = intro ? (intro.hidden ? '' : (intro.body || p.product.description)) : p.product.description;
   if (body) out.push(body);
   if (p.product.target) out.push('이런 분께 추천 — ' + p.product.target);
   return [...new Set(out.filter(Boolean))].join('\n\n');

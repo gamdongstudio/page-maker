@@ -10,7 +10,22 @@ import {
 } from '@/services/export/exportImage';
 import { SmartStore } from '@/components/export/SmartStore';
 import { SmartPlace } from '@/components/export/SmartPlace';
+import { buildPayload } from '@/services/smartstore/payload';
+import { copyBlocks } from '@/services/smartstore/text';
+import { copyText } from '@/utils/copyText';
+import { MainImage } from './MainImage';
+import { StoreTitle } from './StoreTitle';
 import { PageViewer } from './PageViewer';
+
+/*
+ * 지금 화면에서는 감춰 둔 것들.
+ *
+ * 코드와 데이터는 그대로 두고 화면에만 보이지 않게 한다 (나중에 다시 켤 수 있게).
+ *  - 등록 글/TXT: 사장님이 직접 옮겨 적을 일이 거의 없어 ④ 저장을 복잡하게만 만들었다
+ *  - 등록 도우미: 판매가·사진 개수 같은 관리자형 상태표라 PageMaker 사용자에게는 보여주지 않는다
+ */
+const SHOW_STORE_TEXT = false;
+const SHOW_STORE_HELPER = false;
 
 /**
  * ④ 저장
@@ -39,6 +54,7 @@ export function StepSave({ getStage, onNew }: {
   const [small, setSmall] = useState(false);
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
+  const [notice, setNotice] = useState('');
   const [saved, setSaved] = useState<Saved | null>(null);
   const [preview, setPreview] = useState(false);
   const [gallery, setGallery] = useState(false);
@@ -82,6 +98,48 @@ export function StepSave({ getStage, onNew }: {
     return { names, blobs };
   });
 
+  /*
+   * 스마트스토어 등록용 글.
+   *
+   * 새로 글을 만들지 않는다 — 스마트스토어 등록자료(ZIP)가 쓰는 것과 **같은** 추출기를 그대로 쓴다.
+   * (buildPayload → copyBlocks) 숨긴 영역은 그 안에서 이미 빠지고, 빈 항목도 나오지 않는다.
+   */
+  const storeText = () => copyBlocks(buildPayload(project))
+    .map((b) => `[${b.label}]\n${b.text}`)
+    .join('\n\n');
+
+  const copyStore = async () => {
+    setErr('');
+    const ok = await copyText(storeText());
+    setNotice(ok
+      ? '스마트스토어 등록 글을 복사했습니다.'
+      : '복사하지 못했습니다. [스마트스토어 등록용 TXT 저장]을 사용해 주세요.');
+  };
+
+  const saveStoreTxt = () => {
+    setErr('');
+    const head = [
+      '========================================',
+      '스마트스토어 등록용 문구입니다.',
+      '',
+      '아래 내용을 복사해서',
+      '스마트스토어 상품 등록에 사용하세요.',
+      '',
+      '필요한 부분만 골라서 복사해도 됩니다.',
+      '',
+      'PageMaker에서 최종 수정한 내용이',
+      '반영되어 있습니다.',
+      '========================================',
+      '',
+      '',
+    ].join('\n');
+    const title = project.product.storeTitle || project.product.name || project.title;
+    const name = `스마트스토어_등록용_${safeName(title)}.txt`;
+    /* 메모장에서 한글이 깨지지 않도록 BOM 을 붙인다 */
+    download(new Blob(['﻿' + head + storeText()], { type: 'text/plain;charset=utf-8' }), name);
+    setNotice(`${name} 파일을 저장했습니다.`);
+  };
+
   const saveZip = () => run('ZIP 으로 묶는 중…', async (stage) => {
     const { blobs } = await exportSlices(stage, [], opts);
     const zip = await zipBlobs(blobs, base);
@@ -121,7 +179,9 @@ export function StepSave({ getStage, onNew }: {
           <p className="field__hint">다운로드 폴더에서 찾으실 수 있어요.</p>
           <div className="savedone__acts">
             <button className="btn btn--main" onClick={() => setGallery(true)}>저장한 이미지 보기</button>
-            <button className="btn btn--line" onClick={() => setView('helper')}>스마트스토어에 등록하기</button>
+            {SHOW_STORE_HELPER && (
+              <button className="btn btn--line" onClick={() => setView('helper')}>스마트스토어에 등록하기</button>
+            )}
             <button className="btn btn--line" onClick={onNew}>새 상세페이지 만들기</button>
           </div>
           <button className="linkbtn" onClick={() => setView('choose')}>다른 방법으로 또 저장하기</button>
@@ -136,10 +196,13 @@ export function StepSave({ getStage, onNew }: {
       <section className="box savehead">
         <b className="savehead__title">상세페이지가 완성되었습니다.</b>
         <p>저장할 방법을 선택해주세요.</p>
-        <button className="btn btn--line" onClick={() => setPreview(true)}>저장 전 최종 미리보기</button>
-        <button className="btn btn--line" onClick={() => setHowStore((v) => !v)} aria-expanded={howStore}>
-          스마트스토어 등록 방법
-        </button>
+        {/* 두 단추는 같은 줄에 나란히 — 자리가 좁아지면 그때만 줄이 바뀐다 */}
+        <div className="savehead__acts">
+          <button className="btn btn--line" onClick={() => setPreview(true)}>저장 전 최종 미리보기</button>
+          <button className="btn btn--line" onClick={() => setHowStore((v) => !v)} aria-expanded={howStore}>
+            스마트스토어 등록 방법
+          </button>
+        </div>
       </section>
 
       {howStore && <StoreHowTo />}
@@ -158,6 +221,21 @@ export function StepSave({ getStage, onNew }: {
           <p className="field__hint">여러 장으로 나누어 저장은 상세 편집에서 쓸 수 있어요. (⋯ 메뉴 → 상세 편집으로 바꾸기)</p>
         )}
       </div>
+
+      {/* 이미지 말고 '글'도 필요하다 — 상세페이지에 쓴 최종 문구를 스마트스토어 입력칸에 그대로 옮기기 위한 것 */}
+      {SHOW_STORE_TEXT && (
+        <>
+          <section className="box">
+            <h3 className="box__title">스마트스토어 등록 글</h3>
+            <p className="box__hint">상세페이지에 쓴 최종 문구입니다. 숨긴 영역과 빈 항목은 빠집니다.</p>
+            <div className="storetext">
+              <button className="btn btn--line" onClick={() => void copyStore()}>스마트스토어 등록 글 복사</button>
+              <button className="btn btn--line" onClick={saveStoreTxt}>스마트스토어 등록용 TXT 저장</button>
+            </div>
+          </section>
+          {notice && <p className="note note--ok" aria-live="polite">{notice}</p>}
+        </>
+      )}
 
       <label className="optline">
         <input type="checkbox" checked={small} onChange={(e) => setSmall(e.target.checked)} />
@@ -186,7 +264,7 @@ export function StepSave({ getStage, onNew }: {
             <b>나중에 다시 편집할 때</b>
             <em>작업파일 (.saypage) · 열어서 계속 고칠 수 있습니다</em>
           </button>
-          {isPro && (
+          {SHOW_STORE_HELPER && isPro && (
             <>
               <button className="btn btn--line wide" onClick={() => setItems(checkProject(project))}>스마트스토어 올리기 전 확인</button>
               {items && (
@@ -203,9 +281,15 @@ export function StepSave({ getStage, onNew }: {
               )}
             </>
           )}
-          <button className="btn btn--line wide" onClick={() => setView(saved ? 'helper' : 'helper')}>스마트스토어·스마트플레이스 등록 도우미</button>
+          {SHOW_STORE_HELPER && (
+            <button className="btn btn--line wide" onClick={() => setView('helper')}>스마트스토어·스마트플레이스 등록 도우미</button>
+          )}
         </div>
       )}
+
+      {/* 저장이 먼저, 그다음이 스마트스토어 준비 — 상품명과 상품 이미지만 둔다 */}
+      <StoreTitle />
+      <MainImage />
 
       {preview && (
         <PageViewer

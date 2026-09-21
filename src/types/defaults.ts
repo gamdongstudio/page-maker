@@ -17,6 +17,7 @@ export function uid(prefix = 'id'): string {
 /* ------------------------------------------------------------------ */
 
 export const MENU_CATALOG: { kind: MenuKind; title: string; body: string }[] = [
+  { kind: 'news',        title: '이벤트',          body: '' },   /* 스마트플레이스 소식의 최근 이벤트 사진 */
   { kind: 'main',        title: '메인',            body: '' },
   { kind: 'event',       title: '이벤트·혜택',      body: '' },
   { kind: 'discount',    title: '할인 혜택',        body: '' },
@@ -59,8 +60,11 @@ export const KEY_MENU_KINDS: MenuKind[] = ['price', 'event', 'cta'];
  * 필요 없으면 숨기거나 지우면 된다 — 없는 것을 새로 찾아 넣는 것보다 쉽다.
  */
 export const DEFAULT_MENU_KINDS: MenuKind[] = [
-  'main', 'intro', 'recommend', 'benefit', 'gallery',
-  'price', 'event', 'process', 'prepare', 'brand', 'cta',
+  /* 스마트플레이스 소식의 최근 이벤트 사진이 맨 앞 */
+  'news', 'price', 'event', 'intro',
+  'recommend', 'benefit', 'gallery', 'compare', 'process', 'prepare', 'brand', 'review',
+  /* 예약·문의는 마지막 행동이라 늘 맨 아래 */
+  'cta',
 ];
 
 
@@ -69,7 +73,7 @@ export const DEFAULT_MENU_KINDS: MenuKind[] = [
  * PRO 는 위 후보 전체를 쓴다. (프로그램을 둘로 나누지 않고 노출만 다르게 한다)
  */
 export const LITE_MENU_KINDS: MenuKind[] = [
-  'main', 'intro', 'event', 'perks', 'price', 'compare', 'shootConcept',
+  'news', 'main', 'intro', 'event', 'perks', 'price', 'compare', 'shootConcept',
   'benefit', 'recommend', 'gallery', 'process', 'prepare', 'review', 'faq', 'cta', 'free',
 ];
 

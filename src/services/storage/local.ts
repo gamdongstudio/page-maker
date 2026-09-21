@@ -132,6 +132,21 @@ export function migrate(data: ProjectData): ProjectData {
   if (out.design && !KNOWN_PRESETS.includes(out.design.preset)) {
     out.design = { ...out.design, preset: 'clean' };
   }
+  /*
+   * 예약·문의는 상세페이지의 마지막 행동이라 맨 아래에 둔다.
+   * 예전에 만든 작업은 후기보다 위에 있을 수 있어 **한 번만** 아래로 내린다.
+   * 내린 뒤에는 표시를 남겨, 사장님이 직접 순서를 바꾸면 그대로 둔다.
+   */
+  if (!out.flow?.ctaMoved && out.menus.length > 1) {
+    const at = out.menus.findIndex((m) => m.kind === 'cta');
+    if (at >= 0 && at < out.menus.length - 1) {
+      const list = [...out.menus];
+      const [cta] = list.splice(at, 1);
+      list.push(cta);
+      out.menus = list;
+    }
+    out.flow = { ...(out.flow ?? {}), ctaMoved: true };
+  }
   return out;
 }
 

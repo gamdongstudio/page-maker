@@ -8,6 +8,7 @@ import { ownsPhotos } from './templates';
 import {
   BenefitSection, ConceptSection, EventSection, FreeSection, GallerySection,
   PackagesSection, PerksSection, PrepareSection, PriceSection, ProcessSection, RecommendSection,
+  ReviewSection,
   type SectionProps,
 } from './sections';
 import { formatWon, pickReadable } from '@/utils/format';
@@ -70,6 +71,8 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
   const contentWidth = width - sidePad * 2;
   /** 최신 소식 이미지 바로 뒤의 이벤트 — 같은 이벤트라 한 묶음으로 붙여 보인다 */
   const joinsNext = (i: number) => visible[i]?.kind === 'news' && visible[i + 1]?.kind === 'event';
+  /** 가격 안내 → 가격표·상품 비교 는 하나의 가격 묶음으로 읽히게 간격만 좁힌다 (완전히 붙이지는 않는다) */
+  const tightNext = (i: number) => visible[i]?.kind === 'price' && visible[i + 1]?.kind === 'compare';
 
   return (
     <EditingContext.Provider value={!!edit}>
@@ -80,7 +83,10 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
         <div key={menu.id}>
           <div
             className={'detail__menu' + (edit && selectedId === menu.id ? ' is-selected' : '')}
-            style={{ marginBottom: i === visible.length - 1 || !edit || joinsNext(i) ? 0 : d.menuGap }}
+            style={{
+              marginBottom: i === visible.length - 1 || !edit || joinsNext(i) ? 0
+                : tightNext(i) ? Math.min(d.menuGap, 14) : d.menuGap,
+            }}
             onClick={edit ? () => edit.onJump('menus', menu.id) : undefined}
             data-menu-id={menu.id}
             draggable={!!edit}
@@ -92,11 +98,6 @@ export function DetailPage({ project, narrow = false, edit, selectedId }: Props)
               dragId.current = null;
             } : undefined}
           >
-            {edit && menu.hidden && (
-              <span style={{ display: 'inline-block', fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#fff4d6', color: '#8a6100', marginBottom: 6 }}>
-                숨김 미리보기 · 완성 페이지에서는 보이지 않습니다
-              </span>
-            )}
             {/* 마우스를 올렸을 때만 보이는 작은 도구. 저장 이미지에는 들어가지 않는다 */}
             {edit && (
               <SectionBar
@@ -299,6 +300,9 @@ function MenuBody({ menu, project, narrow, boxWidth, edit }: {
     case 'news':
       return null; /* 최신 소식 — 제목·글 없이 사진 1장만 (사진은 아래 PhotoBlock 이 그린다) */
 
+    case 'review':
+      return <ReviewSection {...sp} />;
+
     case 'gallery':
       return <GallerySection {...sp} />;
 
@@ -361,34 +365,51 @@ function MenuBody({ menu, project, narrow, boxWidth, edit }: {
           )}
           <VideoBlock url={project.studio?.videoUrl} boxWidth={boxWidth} live={!!edit} />
           {/* 사진관의 마지막 행동은 구매가 아니라 예약·문의다 */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: d.align === 'center' ? 'center' : d.align === 'right' ? 'flex-end' : 'flex-start' }}>
-            {ctaButtons(project).map((b, i) => (
-              <span
-                key={b.label}
-                className={edit ? 'ctabtn' : undefined}
-                onClick={edit ? (e) => { e.stopPropagation(); edit.onJump('product'); } : undefined}
-                title={edit ? '눌러서 전화·예약 정보를 고칩니다' : undefined}
-                style={{
-                  /* 채운 단추와 테두리 단추가 같은 상자 기준을 쓰게 한다.
-                     (테두리가 없으면 그만큼 낮고 좁아져 같은 줄에서 글자가 어긋났다 → 투명 테두리로 맞춤)
-                     줄이 넘어가 상자가 늘어나도 글자는 늘 가운데에 온다. */
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxSizing: 'border-box',
-                  background: i === 0 ? d.primary : 'transparent',
-                  color: i === 0 ? pickReadable(d.primary) : d.primary,
-                  border: `1.5px solid ${i === 0 ? 'transparent' : d.primary}`,
-                  padding: '15px 30px',
-                  borderRadius: d.buttonStyle === 'pill' ? 999 : d.buttonStyle === 'round' ? 10 : 0,
-                  fontWeight: 700,
-                  fontSize: d.bodySize + 1,
-                }}
-              >
-                {b.label}
-              </span>
-            ))}
-          </div>
+          {(() => {
+            const list = ctaButtons(project);
+            /*
+             * 칸을 먼저 나누고 그 안에 글자를 넣는다 (예전에는 글자 길이가 폭을 정해서,
+             * 전화번호가 긴 업체는 마지막 단추가 아랫줄로 떨어졌다).
+             * 넓은 화면은 4칸까지 한 줄 · 중간 폭 2칸 · 좁은 화면 1칸.
+             */
+            const cols = boxWidth >= 700 ? Math.min(list.length, 4)
+              : boxWidth >= 420 ? Math.min(list.length, 2)
+                : 1;
+            /* 칸 너비가 고정되므로 글자가 칸을 넘지 않을 크기로만 쓴다 (넘치면 잘린다) */
+            const size = cols >= 4 ? Math.min(d.bodySize + 1, 16) : d.bodySize + 1;
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: 8, width: '100%', maxWidth: 'none' }}>
+                {list.map((b, i) => (
+                  <span
+                    key={b.label}
+                    className={edit ? 'ctabtn' : undefined}
+                    onClick={edit ? (e) => { e.stopPropagation(); edit.onJump('product'); } : undefined}
+                    title={edit ? '눌러서 전화·예약 정보를 고칩니다' : undefined}
+                    style={{
+                      /* 채운 단추와 테두리 단추가 같은 상자 기준을 쓰게 한다.
+                         (테두리가 없으면 그만큼 낮고 좁아져 같은 줄에서 글자가 어긋났다 → 투명 테두리로 맞춤) */
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxSizing: 'border-box',
+                      width: '100%',
+                      minWidth: 0,
+                      whiteSpace: 'nowrap',
+                      background: i === 0 ? d.primary : 'transparent',
+                      color: i === 0 ? pickReadable(d.primary) : d.primary,
+                      border: `1.5px solid ${i === 0 ? 'transparent' : d.primary}`,
+                      padding: '15px 8px',
+                      borderRadius: d.buttonStyle === 'pill' ? 999 : d.buttonStyle === 'round' ? 10 : 0,
+                      fontWeight: 700,
+                      fontSize: size,
+                    }}
+                  >
+                    {b.label}
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
           {p.contact && !samePhoneAsCta(project) && !menu.body.includes(p.contact.split(' ')[0]) && (
             <p style={{ ...bodyStyle, marginTop: 14, fontSize: d.bodySize - 2, opacity: 0.8 }}>{p.contact}</p>
           )}

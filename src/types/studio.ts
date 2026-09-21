@@ -147,3 +147,29 @@ export interface ReadResult {
   /** 읽지 못한 이유 등 알려줄 말 */
   notes: string[];
 }
+
+/**
+ * 후기 한 건.
+ *
+ * 글과 사진을 **따로** 들고 있는다. 한 장 이미지로 합치지 않는다.
+ * (글을 고치고, 사진만 바꾸고, 모바일에서 줄바꿈되게 하려면 따로여야 한다)
+ *
+ * `stars` 는 **실제 별점이 있을 때만** 넣는다. 없으면 비워 두고 별을 그리지 않는다.
+ */
+export interface Review {
+  id: string;
+  /** 후기 글 */
+  body: string;
+  /** 작성자 (예: 김**) */
+  author: string;
+  /** 어디에 올라온 후기인지 (예: 네이버) */
+  source: string;
+  /** 날짜 (선택) */
+  date: string;
+  /** 후기 사진 (선택) */
+  photoId: string;
+  /** 실제 별점 1~5 — 모르면 넣지 않는다 */
+  stars?: number;
+  /** 상세페이지에 쓸지 — 고르지 않은 후기는 후보로만 남는다 */
+  use: boolean;
+}

@@ -168,7 +168,7 @@ export function StepPrepare() {
         const news = photos.find((p) => p.news);
         if (news) {
           const at = d.menus.findIndex((m) => m.kind === 'news');
-          const menu = at >= 0 ? d.menus.splice(at, 1)[0] : makeMenu('news', '최신 소식');
+          const menu = at >= 0 ? d.menus.splice(at, 1)[0] : makeMenu('news', '이벤트');
           d.menus.unshift({ ...menu, photoIds: [news.id], hidden: false });
         }
       }

@@ -18,8 +18,16 @@ import { youtubeOf } from '@/utils/youtube';
  * 입력 안내는 오른쪽 편집 칸에만 둔다.
  * ⚠ 데이터는 지우지 않는다. 내용을 넣으면 곧바로 다시 나타난다.
  */
+/**
+ * 이번 PageMaker에서 쓰지 않기로 한 영역.
+ * 비워 두면 모든 영역을 그대로 보여준다.
+ */
+export const DROPPED_KINDS: MenuItem['kind'][] = [];
+
+export const isDropped = (m: MenuItem): boolean => DROPPED_KINDS.includes(m.kind);
+
 export function shownMenus(project: ProjectData): MenuItem[] {
-  return project.menus.filter((m) => !m.hidden && hasContent(m, project));
+  return project.menus.filter((m) => !isDropped(m) && !m.hidden && hasContent(m, project));
 }
 
 export function hasContent(menu: MenuItem, project: ProjectData): boolean {
@@ -44,7 +52,8 @@ export function hasContent(menu: MenuItem, project: ProjectData): boolean {
 
     case 'event': {
       const ev = project.event;
-      return has(ev?.body) || has(menu.body) || has(ev?.eventPrice) || has(ev?.listPrice)
+      /* 이벤트 제목만 적어도 보여준다 (예전에는 제목을 빼먹어, 제목만 넣으면 영영 안 나왔다) */
+      return has(ev?.title) || has(ev?.body) || has(menu.body) || has(ev?.eventPrice) || has(ev?.listPrice)
         || has(ev?.period) || photos;
     }
 
@@ -61,7 +70,8 @@ export function hasContent(menu: MenuItem, project: ProjectData): boolean {
     }
 
     case 'compare':
-      return (project.packages ?? []).length > 0;
+      /* 상품명도 가격도 없는 빈 줄 하나만 있으면 아직 내용이 없는 것으로 본다 */
+      return (project.packages ?? []).some((x) => has(x.name) || has(x.price));
 
     case 'shootConcept':
       return lines || has(menu.body) || (project.concepts ?? []).length > 0 || photos;
@@ -71,6 +81,9 @@ export function hasContent(menu: MenuItem, project: ProjectData): boolean {
 
     case 'recommend':
       return lines || has(menu.body) || has(p.target);
+
+    case 'review':
+      return (project.reviews ?? []).some((r) => r.use && (r.body.trim() || r.photoId));
 
     case 'gallery':
       return photos;

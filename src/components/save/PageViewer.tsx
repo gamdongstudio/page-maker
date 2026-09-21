@@ -27,7 +27,11 @@ export function PageViewer({ project, title, onClose, top, footer }: {
   useLayoutEffect(() => {
     const el = boxRef.current;
     if (!el) return;
-    const fit = () => setScale(Math.min(1, (el.clientWidth - 24) / SMARTSTORE_DETAIL_WIDTH));
+    /* 같은 값이면 다시 그리지 않는다 (소수점 끝자리 흔들림 → 화면 떨림 방지) */
+    const fit = () => {
+      const next = Math.min(1, Math.round(((el.clientWidth - 24) / SMARTSTORE_DETAIL_WIDTH) * 1000) / 1000);
+      setScale((prev) => (Math.abs(prev - next) < 0.002 ? prev : next));
+    };
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
@@ -37,7 +41,10 @@ export function PageViewer({ project, title, onClose, top, footer }: {
   useEffect(() => {
     const el = pageRef.current;
     if (!el) return;
-    const measure = () => setH(el.scrollHeight);
+    const measure = () => setH((prev) => {
+      const next = el.scrollHeight;
+      return Math.abs(prev - next) <= 1 ? prev : next;
+    });
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);

@@ -43,6 +43,30 @@ function Img({ photo, width, radius }: { photo: Photo; width: number; radius: nu
 }
 
 /**
+ * 갤러리 칸 — **같은 모양 안에서는 모든 칸이 같은 크기.**
+ *
+ * 사진마다 원본 비율이 달라 카드 높이가 들쭉날쭉해 보이던 것을 막는다.
+ * 늘려서 찌그러뜨리지 않고(cover), 사진마다 정해 둔 중심을 기준으로 가운데만 남긴다.
+ */
+function GalleryCell({ photo, height, radius }: { photo: Photo; height: number; radius: number }) {
+  return (
+    <img
+      src={photo.dataUrl}
+      alt={photo.caption || photo.name}
+      style={{
+        width: '100%',
+        height,
+        display: 'block',
+        objectFit: 'cover',
+        objectPosition: `${photo.focusX}% ${photo.focusY}%`,
+        borderRadius: radius,
+        background: '#f1f3f6',
+      }}
+    />
+  );
+}
+
+/**
  * 모양에 자리가 없어 못 보여준 사진을 아래에 이어서 보여준다.
  *
  * 스타일(영역 모양)을 바꾸면 사진 자리 수가 달라진다. 자리가 모자라 사진이 화면에서
@@ -930,6 +954,12 @@ export function GallerySection({ menu, project, titleStyle, boxWidth }: SectionP
   const gap = 10;
   const cols = tpl === 'B' ? 1 : tpl === 'C' ? 2 : tpl === 'D' ? 3 : 2;
   const cell = Math.floor((boxWidth - gap * (cols - 1)) / cols);
+  /*
+   * 갤러리 카드는 4:5 세로형.
+   * 정사각(1:1)으로 맞추니 사진 속 글자와 인물의 위아래가 너무 잘렸다.
+   * 원본은 그대로 두고 보여주는 칸 비율만 바꾼다. (갤러리에서만 쓴다)
+   */
+  const cellH = Math.round(cell * 1.25);
 
   if (tpl === 'D') {
     /* 모자이크 — 첫 장을 크게 */
@@ -938,10 +968,10 @@ export function GallerySection({ menu, project, titleStyle, boxWidth }: SectionP
       <div>
         <h2 style={titleStyle}>{menu.title}</h2>
         <div style={{ display: 'grid', gap }}>
-          <Img photo={first} width={boxWidth} radius={d.photoRadius} />
+          <GalleryCell photo={first} height={Math.round(boxWidth * 0.66)} radius={d.photoRadius} />
           {rest.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap }}>
-              {rest.map((p) => <Img key={p.id} photo={p} width={cell} radius={d.photoRadius} />)}
+              {rest.map((p) => <GalleryCell key={p.id} photo={p} height={cellH} radius={d.photoRadius} />)}
             </div>
           )}
         </div>
@@ -952,8 +982,9 @@ export function GallerySection({ menu, project, titleStyle, boxWidth }: SectionP
   return (
     <div>
       <h2 style={titleStyle}>{menu.title}</h2>
+      {/* 칸 높이를 칸 너비와 같게(1:1) 잡아 모든 카드가 같은 크기로 보이게 한다 */}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap, marginTop: 4 }}>
-        {photos.map((p) => <Img key={p.id} photo={p} width={cell} radius={d.photoRadius} />)}
+        {photos.map((p) => <GalleryCell key={p.id} photo={p} height={cellH} radius={d.photoRadius} />)}
       </div>
     </div>
   );
@@ -1197,6 +1228,94 @@ export function FreeSection({ menu, project, titleStyle, bodyStyle }: SectionPro
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+/** 후기 별점 — 어느 디자인에서나 같은 밝은 골드. 브랜드색을 따라가지 않는다 */
+const STAR_GOLD = '#f5b301';
+
+/* ------------------------------------------------------------------ */
+/* 후기                                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 후기 — 후기 전용 카드.
+ *
+ * 글과 사진을 **따로** 그린다. 한 장 이미지로 합치지 않는다.
+ * 별점은 **실제 값이 있을 때만** 그린다 (없는 후기에 별 5개를 만들어 붙이지 않는다).
+ */
+export function ReviewSection({ menu, project, titleStyle, bodyStyle, boxWidth, narrow }: SectionProps) {
+  const d = project.design;
+  /* 고른 후기 중 앞에서 최대 4개까지만 (넓은 화면에서 2열 × 2행). 없는 후기를 만들어 채우지 않는다 */
+  const list = (project.reviews ?? [])
+    .filter((r) => r.use && (r.body.trim() || r.photoId))
+    .slice(0, 4);
+
+  if (list.length === 0) {
+    return (
+      <div>
+        <h2 style={titleStyle}>{menu.title}</h2>
+        <Empty text="후기를 고르면 여기에 보입니다." />
+      </div>
+    );
+  }
+
+  const cols = narrow || list.length === 1 ? 1 : 2;
+  const gap = 12;
+  const cell = Math.floor((boxWidth - gap * (cols - 1)) / cols);
+  const photoOf = (id: string) => project.photos.find((p) => p.id === id);
+
+  return (
+    <div>
+      <h2 style={titleStyle}>{menu.title}</h2>
+      {menu.body.trim() && <p style={{ ...bodyStyle, marginTop: 0, marginBottom: 14 }}>{menu.body}</p>}
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap }}>
+        {list.map((r) => {
+          const photo = photoOf(r.photoId);
+          const who = [r.author, r.source].filter(Boolean).join(' · ');
+          return (
+            <div
+              key={r.id}
+              style={{
+                background: shade(d.background, -3),
+                borderRadius: d.photoRadius,
+                overflow: 'hidden',
+                textAlign: 'left',
+              }}
+            >
+              {photo && (
+                <img
+                  src={photo.dataUrl}
+                  alt={photo.caption || photo.name}
+                  style={{
+                    width: '100%', height: Math.round(cell * 0.72), display: 'block',
+                    objectFit: 'cover', objectPosition: `${photo.focusX}% ${photo.focusY}%`,
+                    background: '#f1f3f6',
+                  }}
+                />
+              )}
+              <div style={{ padding: '14px 16px 16px' }}>
+                {/* 실제 별점이 있을 때만 */}
+                {/* 실제 별점이 있을 때만. 빈 별·숫자는 그리지 않는다 */}
+                {!!r.stars && (
+                  <p style={{ margin: '0 0 6px', color: STAR_GOLD, fontSize: d.bodySize, letterSpacing: 2 }}>
+                    {'★'.repeat(Math.max(1, Math.min(5, Math.round(r.stars))))}
+                  </p>
+                )}
+                {r.body.trim() && (
+                  <p style={{ ...bodyStyle, margin: 0, textAlign: 'left', whiteSpace: 'pre-wrap' }}>{r.body}</p>
+                )}
+                {(who || r.date) && (
+                  <p style={{ margin: '10px 0 0', fontSize: d.bodySize - 2, opacity: .7, textAlign: 'left' }}>
+                    {[who, r.date].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

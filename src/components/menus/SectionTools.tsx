@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useProject } from '@/store/ProjectStore';
 import { PHOTO_KIND_LABEL, type FontKey, type MenuItem, type PricePackage } from '@/types/project';
+import type { Review } from '@/types/studio';
 import { FONT_KEYS, FONTS } from '@/config/fonts';
 import { uid } from '@/types/defaults';
 import { templatesFor } from '@/components/preview/templates';
@@ -11,6 +12,15 @@ import { EMPTY_EVENT, EMPTY_PRICING } from '@/types/studio';
 import { setPrice } from '@/utils/photoOps';
 import { readPhotoFiles } from '@/utils/image';
 import { GptPromptBox } from '@/components/prepare/ContentFields';
+
+/**
+ * '목록 (한 줄에 하나씩)' 입력칸을 보여줄 영역.
+ * 목록으로 보여주는 영역에서만 쓴다 — 일반 제목+설명형에는 필요 없다.
+ */
+const USES_LINES: MenuItem['kind'][] = [
+  'benefit', 'feature', 'recommend', 'perks', 'process', 'prepare',
+  'faq', 'caution', 'howto', 'shipping', 'shootConcept', 'concept', 'scene',
+];
 
 /**
  * 섹션 하나를 고치는 편집창.
@@ -84,22 +94,26 @@ export function SectionTools({ menu }: { menu: MenuItem }) {
           placeholder="이 섹션에 들어갈 내용을 적어주세요"
           onChange={(e) => patch({ body: e.target.value }, 'menu.body.' + menu.id)}
         />
-        <label className="field">
-          <span className="field__label">목록 (한 줄에 하나씩)</span>
-          <textarea
-            className="mini mini--text"
-            rows={3}
-            value={menu.lines.join('\n')}
-            placeholder={'예)\n촬영 예약\n촬영\n사진 고르기'}
-            onChange={(e) => patch(
-              { lines: e.target.value.split('\n') },
-              'menu.lines.' + menu.id,
-            )}
-          />
-          <span className="field__hint">
-            혜택은 <b>제목 | 설명</b> 처럼 적으면 두 줄로 나뉘어 보입니다.
-          </span>
-        </label>
+        {/* 목록을 실제로 쓰는 영역에서만 보여준다 — 일반 제목+설명형에서는 헷갈리기만 한다.
+            (값은 지우지 않으므로 예전 작업 데이터는 그대로 남는다) */}
+        {USES_LINES.includes(menu.kind) && (
+          <label className="field">
+            <span className="field__label">목록 (한 줄에 하나씩)</span>
+            <textarea
+              className="mini mini--text"
+              rows={3}
+              value={menu.lines.join('\n')}
+              placeholder={'예)\n촬영 예약\n촬영\n사진 고르기'}
+              onChange={(e) => patch(
+                { lines: e.target.value.split('\n') },
+                'menu.lines.' + menu.id,
+              )}
+            />
+            <span className="field__hint">
+              혜택은 <b>제목 | 설명</b> 처럼 적으면 두 줄로 나뉘어 보입니다.
+            </span>
+          </label>
+        )}
 
         {/* 자유 영역은 버튼 문구도 직접 적을 수 있다 */}
         {menu.kind === 'free' && (
@@ -120,6 +134,7 @@ export function SectionTools({ menu }: { menu: MenuItem }) {
         {/* GPT로 가격표 만들기 — 상품 구성 바로 아래, 사진(가격표 이미지)보다 위 */}
         {menu.kind === 'price' && <GptPromptBox kind="price" />}
         {menu.kind === 'event' && <EventFields />}
+        {menu.kind === 'review' && <ReviewEditor />}
       </div>
 
       {/* 2. 사진 — 이 섹션에 보여줄 사진을 고르거나 새로 올린다 */}
@@ -452,6 +467,207 @@ function PackageEditor() {
       <button className="btn btn--line wide" onClick={add} disabled={list.length >= 6}>
         + 상품 추가
       </button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 후기                                                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 후기 고르기 · 고치기.
+ *
+ * 가져온 자료에 후기가 들어 있으면 그것을 후보로 보여주고, 쓸 것만 고른다.
+ * (지금 PM Connect 수집에는 후기가 들어오지 않으므로 대개 [+ 후기 직접 추가]로 넣는다)
+ *
+ * 글과 사진은 따로 둔다 — 한 장 이미지로 합치지 않는다.
+ * 별점은 **실제로 받은 값이 있을 때만** 넣는다. 비워 두면 별을 그리지 않는다.
+ */
+function ReviewEditor() {
+  const { project, update } = useProject();
+  const list = project.reviews ?? [];
+  const dragId = useRef<string | null>(null);
+
+  const edit = (fn: (arr: Review[]) => void, label: string) =>
+    update((d) => {
+      if (!d.reviews) d.reviews = [];
+      fn(d.reviews);
+    }, { label, merge: false });
+
+  const patch = (id: string, part: Partial<Review>, label: string) =>
+    update((d) => {
+      const r = (d.reviews ?? []).find((x) => x.id === id);
+      if (r) Object.assign(r, part);
+    }, { label });
+
+  const add = () => edit((arr) => {
+    arr.push({ id: uid('rev'), body: '', author: '', source: '', date: '', photoId: '', use: true });
+  }, 'review.add');
+
+  const move = (fromId: string, toId: string) => edit((arr) => {
+    const from = arr.findIndex((x) => x.id === fromId);
+    const to = arr.findIndex((x) => x.id === toId);
+    if (from < 0 || to < 0 || from === to) return;
+    const [m] = arr.splice(from, 1);
+    arr.splice(to, 0, m);
+  }, 'review.move');
+
+  const used = list.filter((r) => r.use).length;
+
+  return (
+    <div className="stack">
+      <span className="field__label">
+        가져온 후기 중 사용할 후기를 선택하세요.{list.length ? ` — ${used}/${list.length}개 사용` : ''}
+      </span>
+      {list.length === 0 && (
+        <p className="menu__hint">
+          아직 후기가 없습니다. [+ 후기 직접 추가]로 넣어주세요.
+          (지금은 주소 가져오기에서 후기를 자동으로 가져오지 않습니다)
+        </p>
+      )}
+
+      {list.map((r) => (
+        <div
+          key={r.id}
+          className={'revcard' + (r.use ? ' is-on' : '')}
+          draggable
+          onDragStart={() => { dragId.current = r.id; }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => { if (dragId.current) move(dragId.current, r.id); dragId.current = null; }}
+        >
+          <div className="revcard__head">
+            <label className="revcard__use">
+              <input
+                type="checkbox"
+                checked={r.use}
+                onChange={(e) => patch(r.id, { use: e.target.checked }, 'review.use.' + r.id)}
+              />
+              <span>{r.use ? '사용함' : '사용 안 함'}</span>
+            </label>
+            <span className="shoot__grip" aria-hidden title="끌어서 순서를 바꿀 수 있어요">⋮⋮</span>
+            <button className="tiny tiny--danger" onClick={() => edit((arr) => {
+              const i = arr.findIndex((x) => x.id === r.id);
+              if (i >= 0) arr.splice(i, 1);
+            }, 'review.del')}>삭제</button>
+          </div>
+
+          <ReviewPhoto review={r} onPick={(photoId) => patch(r.id, { photoId }, 'review.photo.' + r.id)} />
+
+          <textarea
+            className="mini mini--text"
+            rows={3}
+            value={r.body}
+            placeholder="후기 글을 적어주세요"
+            onChange={(e) => patch(r.id, { body: e.target.value }, 'review.body.' + r.id)}
+          />
+          <div className="revcard__who">
+            <input
+              className="mini mini--text"
+              value={r.author}
+              placeholder="작성자 (예: 김**)"
+              onChange={(e) => patch(r.id, { author: e.target.value }, 'review.author.' + r.id)}
+            />
+            <input
+              className="mini mini--text"
+              value={r.source}
+              placeholder="출처 (예: 네이버)"
+              onChange={(e) => patch(r.id, { source: e.target.value }, 'review.source.' + r.id)}
+            />
+          </div>
+          <div className="revcard__who">
+            <input
+              className="mini mini--text"
+              value={r.date}
+              placeholder="날짜 (선택)"
+              onChange={(e) => patch(r.id, { date: e.target.value }, 'review.date.' + r.id)}
+            />
+            <select
+              className="mini"
+              aria-label="별점"
+              value={r.stars ?? ''}
+              onChange={(e) => patch(
+                r.id,
+                { stars: e.target.value ? Number(e.target.value) : undefined },
+                'review.stars.' + r.id,
+              )}
+            >
+              <option value="">별점 없음</option>
+              {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{'★'.repeat(n)}</option>)}
+            </select>
+          </div>
+        </div>
+      ))}
+
+      <button className="btn btn--line wide" onClick={add}>+ 후기 직접 추가</button>
+      <p className="field__hint">실제로 받은 별점만 넣어주세요. 비워두면 별표를 그리지 않습니다.</p>
+    </div>
+  );
+}
+
+/**
+ * 후기 사진 — **기본은 사진 없음.**
+ *
+ * 사진을 자동으로 붙이지 않는다. [사진 넣기]를 눌렀을 때만 고르는 자리를 연다.
+ * 가져온 사진에서 고르거나 컴퓨터에서 바로 올릴 수 있고, 넣은 뒤에는 교체·삭제할 수 있다.
+ */
+function ReviewPhoto({ review, onPick }: { review: Review; onPick: (id: string) => void }) {
+  const { project, update } = useProject();
+  const [open, setOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const photos = project.photos.filter((p) => p.kind !== 'unused');
+  const picked = photos.find((p) => p.id === review.photoId);
+
+  const upload = async (files: File[]) => {
+    if (!files.length) return;
+    const read = await readPhotoFiles(files, 'upload');
+    if (!read.length) return;
+    update((d) => { d.photos.push(...read); }, { label: 'review.photo.add', merge: false });
+    onPick(read[0].id);
+    setOpen(false);
+  };
+
+  /* 사진이 없으면 단추 하나만 — 빈 사진 자리를 만들지 않는다 */
+  if (!review.photoId && !open) {
+    return <div><button className="tiny" onClick={() => setOpen(true)}>사진 넣기</button></div>;
+  }
+
+  return (
+    <div className="stack" style={{ gap: 6 }}>
+      {picked && (
+        <div className="revcard__now">
+          <img src={picked.dataUrl} alt={picked.name} />
+          <button className="tiny" onClick={() => setOpen((v) => !v)}>{open ? '고르기 닫기' : '사진 교체'}</button>
+          <button className="tiny tiny--danger" onClick={() => { onPick(''); setOpen(false); }}>사진 삭제</button>
+        </div>
+      )}
+      {open && (
+        <>
+          {photos.length > 0 && (
+            <div className="revcard__pics">
+              {photos.map((p) => (
+                <button
+                  key={p.id}
+                  className={'revcard__pic' + (review.photoId === p.id ? ' is-on' : '')}
+                  onClick={() => { onPick(p.id); setOpen(false); }}
+                  title={p.name}
+                >
+                  <img src={p.dataUrl} alt={p.name} />
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="revcard__picacts">
+            <button className="tiny" onClick={() => fileRef.current?.click()}>컴퓨터에서 올리기</button>
+            {!review.photoId && <button className="tiny" onClick={() => setOpen(false)}>닫기</button>}
+            <input
+              ref={fileRef} type="file" accept="image/*" hidden
+              onChange={(e) => { void upload([...(e.target.files ?? [])]); e.target.value = ''; }}
+            />
+          </div>
+          {photos.length === 0 && <p className="menu__hint">가져온 사진이 없으면 컴퓨터에서 바로 올릴 수 있어요.</p>}
+        </>
+      )}
     </div>
   );
 }

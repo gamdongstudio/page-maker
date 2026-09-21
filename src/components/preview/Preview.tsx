@@ -81,7 +81,9 @@ export function Preview({ edit, selectedId }: Props) {
     if (!el) return;
     const fit = () => {
       const avail = el.clientWidth - 32;
-      setScale(Math.min(1, avail / pageWidth));
+      const next = Math.min(1, Math.round((avail / pageWidth) * 1000) / 1000);
+      /* 값이 그대로면 다시 그리지 않는다 — 소수점 끝자리가 흔들리면 화면이 미세하게 떨린다 */
+      setScale((prev) => (Math.abs(prev - next) < 0.002 ? prev : next));
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -93,7 +95,11 @@ export function Preview({ edit, selectedId }: Props) {
   useEffect(() => {
     const el = pageRef.current;
     if (!el) return;
-    const measure = () => setInnerH(el.getBoundingClientRect().height / (scale || 1));
+    /* 1px 미만 차이로는 다시 그리지 않는다 (높이 → 스크롤바 → 폭 → 배율 되돌이를 끊는다) */
+    const measure = () => {
+      const next = Math.round(el.getBoundingClientRect().height / (scale || 1));
+      setInnerH((prev) => (Math.abs(prev - next) <= 1 ? prev : next));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
