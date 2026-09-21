@@ -705,15 +705,16 @@ export function ConceptSection({ menu, project, titleStyle, bodyStyle, boxWidth 
     const cards = concepts.length > 0
       ? concepts.map((c, i) => ({ name: c.name, summary: c.summary, photo: photos[i] }))
       : names.map((n, i) => ({ name: n, summary: '', photo: photos[i] }));
+    /* 사진이 있는 카드만 그린다 — 빈 회색 칸을 만들지 않는다 (콘셉트 이름은 그대로 두어 사진을 넣으면 다시 보인다) */
+    const shown = cards.filter((c) => c.photo);
     return (
       <div>
         <h2 style={titleStyle}>{menu.title}</h2>
         {menu.body && <p style={{ ...bodyStyle, marginBottom: 14 }}>{menu.body}</p>}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {cards.map((c, i) => (
+          {shown.map((c, i) => (
             <div key={i}>
-              {c.photo ? <Img photo={c.photo} width={half} radius={d.photoRadius} />
-                : <div style={{ height: 120, background: shade(d.background, -6), borderRadius: d.photoRadius }} />}
+              {c.photo && <Img photo={c.photo} width={half} radius={d.photoRadius} />}
               <b style={{ display: 'block', marginTop: 8, fontSize: d.bodySize }}>{c.name}</b>
               {c.summary && <span style={{ fontSize: d.bodySize - 3, opacity: .75 }}>{c.summary}</span>}
             </div>
