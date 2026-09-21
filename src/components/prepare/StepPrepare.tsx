@@ -69,6 +69,14 @@ function syncField(d: ProjectData): void {
   if (field) applyField(d, field);
 }
 
+/** 주소 기록 저장 — 같은 줄은 바꾸고, 같은 주소가 다른 줄로 남아 있으면 지운다 (같은 주소가 두 번 기록되지 않게) */
+function putSource(sources: SourceLink[] | undefined, item: SourceLink): SourceLink[] {
+  const list = (sources ?? []).filter((x) => x.id === item.id || x.url !== item.url);
+  const i = list.findIndex((x) => x.id === item.id);
+  if (i >= 0) list[i] = item; else list.push(item);
+  return list;
+}
+
 /** 실제로 작업한 내용이 있는지 (예전에 적어둔 사진관 정보만 자동으로 들어온 빈 작업은 아니다) */
 function hasWorkContent(p: ProjectData): boolean {
   return !!(p.product.name.trim() || p.photos.length || p.shoot?.productName || p.flow?.recommendedAt
@@ -89,7 +97,8 @@ export function StepPrepare() {
   const latest = useRef(project);
   latest.current = project;
 
-  const rows: SourceLink[] = project.sources?.length ? project.sources : [];
+  /* 같은 주소가 두 줄로 남아 있던 작업도 한 줄로 보여준다 (예전에 저장된 중복 기록) */
+  const rows: SourceLink[] = (project.sources ?? []).filter((x, i, all) => all.findIndex((y) => y.url === x.url) === i);
   const [draft, setDraft] = useState<SourceLink[]>(() => (rows.length ? rows : [{ id: uid('src'), url: '' }]));
   const [state, setState] = useState<Record<string, RowState>>({});
   const [busy, setBusy] = useState(false);
@@ -191,13 +200,7 @@ export function StepPrepare() {
           d.menus.unshift({ ...menu, photoIds: [news.id], hidden: false });
         }
       }
-      if (link) {
-        const list = [...(d.sources ?? [])];
-        const i = list.findIndex((x) => x.id === link.id);
-        const item: SourceLink = { ...link, state: 'ok', at: Date.now() };
-        if (i >= 0) list[i] = item; else list.push(item);
-        d.sources = list;
-      }
+      if (link) d.sources = putSource(d.sources, { ...link, state: 'ok', at: Date.now() });
     }, { label: 'import.merge', merge: false });
 
     /* 같은 칸을 두 번 묻지 않는다 — 새로 물어볼 것으로 바꿔 끼운다 */
@@ -237,6 +240,14 @@ export function StepPrepare() {
     }
     setNeedConnect(false);
 
+    /* 이미 가져온 주소인지 — 저장된 주소 기록과 같은 모양으로 견준다 */
+    const doneBefore = (url: string) => {
+      const c = checkUrl(url);
+      const key = c.ok ? normalizePlaceUrl(c.url) : url.trim();
+      return (latest.current.sources ?? []).some((x) => x.state === 'ok' && x.url === key);
+    };
+    const hasNew = targets.some((r) => !doneBefore(r.url));
+
     for (const row of targets) {
       const checked = checkUrl(row.url);
       if (!checked.ok) { setRow(row.id, { phase: '', error: checked.reason }); continue; }
@@ -255,6 +266,12 @@ export function StepPrepare() {
         continue;
       }
 
+      /* 새 주소를 추가하고 누른 경우 — 이미 가져온 주소는 다시 가져오지 않는다 (같은 자료가 또 들어가지 않게) */
+      if (hasNew && doneBefore(checked.url)) {
+        setRow(row.id, { phase: '✓ 이미 가져온 주소입니다.' });
+        continue;
+      }
+
       setRow(row.id, { phase: '글 가져오는 중…' });
       /* 업체 번호가 보이는 네이버 주소는 검색어·지도 위치 같은 군더더기를 빼고 보낸다 (naver.me 는 PM Connect 가 푼다) */
       const target = normalizePlaceUrl(checked.url);
@@ -269,11 +286,7 @@ export function StepPrepare() {
         });
         if (res.offline) setNeedConnect(true);
         update((d) => {
-          const list = [...(d.sources ?? [])];
-          const i = list.findIndex((x) => x.id === row.id);
-          const item: SourceLink = { ...row, url: checked.url, state: 'fail', at: Date.now() };
-          if (i >= 0) list[i] = item; else list.push(item);
-          d.sources = list;
+          d.sources = putSource(d.sources, { ...row, url: checked.url, state: 'fail', at: Date.now() });
         }, { label: 'sources', merge: false });
         continue;
       }
