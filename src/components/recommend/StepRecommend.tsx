@@ -123,6 +123,13 @@ export function StepRecommend({ onNext }: { onNext: () => void }) {
   }, { label: 'studio.area' });
   const pickHero = (t: string) => update((d) => { d.product.tagline = t; }, { label: 'recommend.hero', merge: false });
 
+  /** 제목 직접 입력 — 글자마다 저장되므로 스마트스토어 제목은 따라오던 경우에만 같이 고친다 */
+  const typeTitle = (t: string) => update((d) => {
+    const followed = !d.product.storeTitle?.trim() || d.product.storeTitle === d.product.name;
+    d.product.name = t;
+    if (followed) d.product.storeTitle = t;
+  }, { label: 'recommend.title.type' });
+
   return (
     <div className="stack recommend">
       <section className="box">
@@ -202,6 +209,18 @@ export function StepRecommend({ onNext }: { onNext: () => void }) {
                 </button>
               ))}
             </div>
+            {/* 마음에 드는 제목이 없을 때 — 앞 단계로 돌아가지 않고 여기서 바로 적는다 */}
+            <label className="field">
+              <span className="field__label">직접 입력</span>
+              <input
+                className="field__input"
+                value={project.product.name}
+                placeholder="원하는 메인 제목을 적어주세요"
+                onChange={(e) => typeTitle(e.target.value)}
+              />
+              <span className="field__hint">적는 대로 왼쪽 미리보기와 저장 결과에 그대로 들어갑니다.</span>
+            </label>
+
             <h3 className="box__title box__title--sub">한 줄 소개 고르기</h3>
             <div className="chiprow">
               {plan.heroCopy.map((t) => (

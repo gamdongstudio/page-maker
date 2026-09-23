@@ -9,6 +9,7 @@ import { isLinked, linkedValue, revealWhenFilled, setLinked } from './sectionTex
 import { Field } from '@/components/editor/Fields';
 import { StudioForm } from '@/components/studio/StudioForm';
 import { ShootProducts } from '@/components/studio/ShootProducts';
+import { ApplyChanges } from './ApplyChanges';
 
 /**
  * 상세페이지에 들어갈 글 — **늘 보이는 입력칸.**
@@ -57,6 +58,9 @@ export function ContentFields({ mode }: { mode: 'prepare' | 'edit' }) {
   return (
     <div className="stack fields">
       {mode === 'prepare' && <ProductKind />}
+
+      {/* 자동 제작 뒤 자료를 고쳤을 때 — 관련 영역만 맞춘다 */}
+      <ApplyChanges />
 
       <Field label="상품명" value={p.name} onChange={set('name')} placeholder="예) 광명 가족사진 촬영" />
 

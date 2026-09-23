@@ -57,6 +57,8 @@ export function StepSave({ getStage, onNew }: {
   const [notice, setNotice] = useState('');
   const [saved, setSaved] = useState<Saved | null>(null);
   const [preview, setPreview] = useState(false);
+  /** 여러 장 미리보기 — 실제 저장(exportSlices)과 같은 결과를 그대로 보여준다 */
+  const [cuts, setCuts] = useState<Blob[] | null>(null);
   const [gallery, setGallery] = useState(false);
   const [more, setMore] = useState(false);
   const [howStore, setHowStore] = useState(false);
@@ -90,6 +92,23 @@ export function StepSave({ getStage, onNew }: {
     download(blob, name);
     return { names: [name], blobs: [blob] };
   });
+
+  /* 새로 나누지 않는다 — 저장에 쓰는 함수를 그대로 불러 경계가 같게 한다 */
+  const previewSplit = async () => {
+    const stage = getStage();
+    if (!stage) { setErr('상세페이지를 찾지 못했습니다. 화면을 새로고침한 뒤 다시 해주세요.'); return; }
+    setBusy('나뉜 모습 만드는 중…');
+    setErr('');
+    try {
+      await waitForImages(stage);
+      const { blobs } = await exportSlices(stage, [], opts);
+      setCuts(blobs);
+    } catch {
+      setErr('나뉜 모습을 만들지 못했습니다. 잠시 후 다시 해주세요.');
+    } finally {
+      setBusy('');
+    }
+  };
 
   const saveSplit = () => run('여러 장으로 나누는 중…', async (stage) => {
     const { blobs } = await exportSlices(stage, [], opts);
@@ -199,6 +218,7 @@ export function StepSave({ getStage, onNew }: {
         {/* 두 단추는 같은 줄에 나란히 — 자리가 좁아지면 그때만 줄이 바뀐다 */}
         <div className="savehead__acts">
           <button className="btn btn--line" onClick={() => setPreview(true)}>저장 전 최종 미리보기</button>
+          <button className="btn btn--line" onClick={() => void previewSplit()} disabled={!!busy}>여러 장 미리보기</button>
           <button className="btn btn--line" onClick={() => setHowStore((v) => !v)} aria-expanded={howStore}>
             스마트스토어 등록 방법
           </button>
@@ -291,6 +311,14 @@ export function StepSave({ getStage, onNew }: {
       <StoreTitle />
       <MainImage />
 
+      {cuts && (
+        <SavedGallery
+          blobs={cuts}
+          title={`여러 장으로 나눈 모습 ${cuts.length}장 — 저장하면 이대로 나뉩니다`}
+          onClose={() => setCuts(null)}
+        />
+      )}
+
       {preview && (
         <PageViewer
           project={project}
@@ -304,7 +332,7 @@ export function StepSave({ getStage, onNew }: {
 }
 
 /** 방금 저장한 이미지 보기 */
-function SavedGallery({ blobs, onClose }: { blobs: Blob[]; onClose: () => void }) {
+function SavedGallery({ blobs, onClose, title }: { blobs: Blob[]; onClose: () => void; title?: string }) {
   const [urls, setUrls] = useState<string[]>([]);
 
   useEffect(() => {
@@ -317,14 +345,14 @@ function SavedGallery({ blobs, onClose }: { blobs: Blob[]; onClose: () => void }
     <div className="viewer" role="dialog" aria-label="저장한 이미지">
       <div className="viewer__panel">
         <header className="viewer__head">
-          <b>저장한 이미지 {blobs.length}장</b>
+          <b>{title ?? `저장한 이미지 ${blobs.length}장`}</b>
           <button className="btn btn--line" onClick={onClose}>닫기</button>
         </header>
         <div className="viewer__scroll savedimgs">
           {urls.map((u, i) => (
             <figure key={u}>
               <img src={u} alt={`저장한 이미지 ${i + 1}`} />
-              <figcaption>{i + 1}번째</figcaption>
+              <figcaption>{i + 1} / {urls.length}</figcaption>
             </figure>
           ))}
         </div>

@@ -61,7 +61,8 @@ export function setLinked(d: ProjectData, key: LinkedKey, value: string): void {
     const m = sectionFor(d, key);
     if (!m) return;
     if (key === 'target') {
-      m.lines = value.split('\n').map((l) => l.trim()).filter(Boolean);
+      /* 줄 구분은 줄바꿈으로만. 글자를 칠 때마다 저장되므로 줄 안의 띄어쓰기를 지우면 안 된다 */
+      m.lines = value.split('\n').filter((l) => l.trim());
       m.body = '';
     } else {
       m.body = value;

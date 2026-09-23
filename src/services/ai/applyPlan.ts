@@ -3,6 +3,26 @@ import { makeMenu } from '@/types/defaults';
 import type { PlannedMenu, StudioPlan } from './studioPlanner';
 import { nextTemplateFor } from '@/components/preview/templates';
 
+/* ------------------------------------------------------------------ */
+/* 자동으로 넣은 글인지 가리는 자국                                       */
+/* ------------------------------------------------------------------ */
+
+/** 지금 글의 자국 */
+export function autoStamp(m: { title: string; body: string; lines: string[] }): string {
+  return [m.title, m.body, m.lines.join('\n')].join('\u0001');
+}
+
+/** 자동으로 넣은 뒤 사용자가 손대지 않았는지 */
+export function isAuto(m: MenuItem): boolean {
+  return !!m.auto && m.auto === autoStamp(m);
+}
+
+/** 방금 자동으로 넣은 글에 자국을 남긴다 */
+function stamp(m: MenuItem): MenuItem {
+  m.auto = autoStamp(m);
+  return m;
+}
+
 /**
  * 만들어진 구성을 실제 작업에 반영한다.
  *
@@ -78,7 +98,7 @@ function mergeMenu(old: MenuItem | undefined, planned: PlannedMenu, mode: WholeM
     created.template = planned.template;
     /* 확인된 내용이 없는 섹션은 숨겨둔다 — 빈 칸이나 샘플 글이 결과에 남지 않게 */
     created.hidden = !!planned.hidden;
-    return created;
+    return stamp(created);
   }
 
   const kept: MenuItem = { ...old };
@@ -106,7 +126,7 @@ function mergeMenu(old: MenuItem | undefined, planned: PlannedMenu, mode: WholeM
     kept.photoIds = [...planned.photoIds];
   }
   kept.template = planned.template || kept.template || 'A';
-  return kept;
+  return stamp(kept);
 }
 
 /* ------------------------------------------------------------------ */
@@ -138,6 +158,7 @@ export function regenerateMenu(
   if (part === 'all' || part === 'photos') target.photoIds = [...planned.photoIds];
   /* 섹션마다 고를 수 있는 모양 수가 다르므로 그 섹션의 목록 안에서만 돈다 */
   if (part === 'template') target.template = nextTemplateFor(target.kind, target.template);
+  if (part === 'all' || part === 'title' || part === 'body') stamp(target);
   return true;
 }
 
@@ -237,7 +258,7 @@ export function applyScoped(
       created.photoIds = [...planned.photoIds];
       created.template = planned.template;
       created.hidden = !!planned.hidden;
-      return created;
+      return stamp(created);
     });
     have.forEach((m) => next.push(m));
     d.menus = next;
